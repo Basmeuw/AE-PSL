@@ -10,8 +10,8 @@ class WrapperModel(torch.nn.Module):
         self.server_model = server_model
 
     def forward(self, x):
-        x = self.client_model(x)
-        x = self.server_model(x)
+        x = self.client_model.forward(x)
+        x = self.server_model.forward(x)
 
         return x
 

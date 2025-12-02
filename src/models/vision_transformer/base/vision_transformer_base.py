@@ -5,13 +5,17 @@ from src.models.lora_layer import LoRALinear
 
 
 class VisionTransformerBase(nn.Module):
-    def __init__(self, use_lora: bool, lora_rank=4, lora_alpha=1, num_classes=100):
+    def __init__(self, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
         super().__init__()
         self.use_lora = use_lora
 
         print(f"Initializing ViT Base (Mode: {'LoRA' if use_lora else 'Full Fine-Tuning'})...")
         weights = torchvision.models.ViT_B_16_Weights.DEFAULT
         self.vit = torchvision.models.vit_b_16(weights=weights)
+        self.vit.to(device)
+
+        # Replace with new head for the desired number of classes
+        self.vit.heads = nn.Linear(self.vit.heads[0].in_features, num_classes)
 
         if self.use_lora:
             # MODE A: LoRA Adaptation
