@@ -9,7 +9,7 @@ from models.meta_transformer.implementations.unimodal.image_classification.model
 
 from models.meta_transformer.implementations.multimodal.vqa.models import get_split_model as get_meta_vqa_split_model, get_centralized_model as get_meta_vqa_centralized_model
 from models.meta_transformer.implementations.multimodal.vqa.models import get_federated_model as get_meta_vqa_federated_model
-from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import get_split_model as get_meta_image_text_retrieval_split_model, get_centralized_model as get_meta_image_text_retrieval_centralized_model
+from src.models.meta_transformer.implementations.multimodal.image_text_retrieval.models import get_split_model as get_meta_image_text_retrieval_split_model, get_centralized_model as get_meta_image_text_retrieval_centralized_model
 from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import get_federated_model as get_meta_image_text_retrieval_federated_model
 from models.meta_transformer.implementations.multimodal.action_recognition.models import get_split_model as get_meta_action_recognition_split_model, get_centralized_model as get_meta_action_recognition_centralized_model
 from models.meta_transformer.implementations.multimodal.action_recognition.models import get_federated_model as get_meta_action_recognition_federated_model
@@ -30,6 +30,7 @@ from trainers.implementations.image_text_retrieval.fl_trainer import FLTrainer a
 class SupportedModel(Enum):
 
     META_TRANSFORMER = 'meta_transformer'
+    VIT = 'vit'
 
 
 def get_federated_model_and_trainer(global_args: Namespace, device: torch.device) -> (Any, ExperimentTrainer):

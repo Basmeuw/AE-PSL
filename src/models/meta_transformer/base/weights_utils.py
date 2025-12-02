@@ -24,12 +24,25 @@ supported_image_tokenizer_checkpoints = {
     'ViT-H/14': {
         'huggingface': 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K',
         'pretrained_model': 'laion2b_s32b_b79k'
+    },
+    'vit-unimodal': {
+        'huggingface': 'google/vit-base-patch16-224',
+        'pretrained_model': 'google/vit-base-patch16-224'
     }
+
+
 }
 
 supported_audio_tokenizer_checkpoints = {
     'audioset-0.4593': 'MIT/ast-finetuned-audioset-10-10-0.4593'
 }
+
+
+
+def get_weights_vit(model_name):
+
+
+    return AutoModelForImageClassification.from_pretrained(model_name).state_dict()
 
 
 def get_image_tokenizer_weights(base_encoder_name):
@@ -65,6 +78,8 @@ def get_audio_tokenizer_weights(model_key, model_name):
         raise NotImplementedError(f"Pre-trained audio tokenizer weights for {model_name} is not implemented.")
 
     return AutoModelForAudioClassification.from_pretrained(model_name).state_dict()
+
+
 
 
 def get_encoder_weights(target_model_state_dict, use_large_encoder=False, include_classifier=True):

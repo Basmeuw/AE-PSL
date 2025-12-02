@@ -1,0 +1,25 @@
+In main_centralized, get_centralized_model_and_trainer is called located in:
+In trainers __init__.py file, factory methods are defined to create the centralized model + trainer.
+Here, we need to switch between models.
+This method in turn calls get_centralized_model, which is renamed for it's specific modality
+each modality like image retrieval has it's own factory methods to create a base model with the correct params.
+
+These factory methods use the classes CentralizedModel, or MetaTransformerBase.
+These classes are made per modality.
+CentralizedModel inherets MetaTransformerBase.
+Each CentralizedModel class has its own specific implementation for the specific modality.
+In the init of centralizedModel, load all of the pre-trained weights.
+The Client and Server models then use this centralized base model to init their models.
+
+
+Changes to be made:
+- Need to add num_classes as an argument to the factory methods to create the base model.
+
+
+Plan:
+
+Create an ae_vit.py class implementing class AE_ViT_Base. We can then use roughly the same logic of the models.py classes
+First create a
+Need to ensure that the AE is actually trained with the rest of the model.
+
+

@@ -1,5 +1,5 @@
 core.*
 *.pyc
 *.gz
-
+data/
 .idea/
