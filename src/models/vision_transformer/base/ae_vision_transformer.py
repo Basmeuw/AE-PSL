@@ -33,29 +33,51 @@ class AEVisionTransformer(VisionTransformerBase):
         x = x[InputModality.IMAGE]
         return self.vit(x)
 
+    # def embedding_layer(self, x):
+    #
+    #     n, c, h, w = x.shape
+    #     p = self.vit.patch_size
+    #     torch._assert(h == self.vit.image_size, f"Wrong image height! Expected {self.vit.image_size} but got {h}!")
+    #     torch._assert(w == self.vit.image_size, f"Wrong image width! Expected {self.vit.image_size} but got {w}!")
+    #     n_h = h // p
+    #     n_w = w // p
+    #
+    #     # (n, c, h, w) -> (n, hidden_dim, n_h, n_w)
+    #     x = self.vit.conv_proj(x)
+    #     # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
+    #     x = x.reshape(n, self.vit.hidden_dim, n_h * n_w)
+    #
+    #     # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
+    #     # The self attention layer expects inputs in the format (N, S, E)
+    #     # where S is the source sequence length, N is the batch size, E is the
+    #     # embedding dimension
+    #     x = x.permute(0, 2, 1)
+    #
+    #     return x
 
-    def forward_server(self, x):
-        """
-        Executes the model from the AE Decoder to the final classification head.
-        Input x is the compressed latent representation.
-        """
-        x = x[InputModality.IMAGE]
 
-        # 1. AE Decoder
-        ae_module = self.vit.encoder.layers[self.split_layer]
-        x = ae_module.decode(x)
-
-        # 2. Remaining Transformer Blocks
-        # Iterate from split_layer + 1 to the end
-        total_layers = len(self.vit.encoder.layers)
-        for i in range(self.split_layer + 1, total_layers):
-            x = self.vit.encoder.layers[i](x)
-
-        # 3. Final Norm and Head
-        x = self.vit.encoder.ln(x)
-        x = self.vit.heads(x)
-
-        return x
+    # def forward_server(self, x):
+    #     """
+    #     Executes the model from the AE Decoder to the final classification head.
+    #     Input x is the compressed latent representation.
+    #     """
+    #     x = x[InputModality.IMAGE]
+    #
+    #     # 1. AE Decoder
+    #     ae_module = self.vit.encoder.layers[self.split_layer]
+    #     x = ae_module.decode(x)
+    #
+    #     # 2. Remaining Transformer Blocks
+    #     # Iterate from split_layer + 1 to the end
+    #     total_layers = len(self.vit.encoder.layers)
+    #     for i in range(self.split_layer + 1, total_layers):
+    #         x = self.vit.encoder.layers[i](x)
+    #
+    #     # 3. Final Norm and Head
+    #     x = self.vit.encoder.ln(x)
+    #     x = self.vit.heads(x)
+    #
+    #     return x
 
     def print_status(self):
         """Helper to inspect the model state."""

@@ -76,6 +76,9 @@ def build_base_argument_parser():
     # Specifically for datasets with the audio modality
     parser.add_argument('--audio_time_dimension', type=str, default='10.24s', help='This parameter is explicitly used for datasets with the audio modality. It defines the duration/dimension of a single audio input sample. For available options, please refer to the model implementation of the chosen task.')
 
+    # For testing
+    parser.add_argument('--small_test_run', dest='small_test_run', type=lambda x: bool(strtobool(x)), default=False, help='Whether a small test run should be executed for rapid testing purposes.')
+
     return parser
 
 

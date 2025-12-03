@@ -61,14 +61,14 @@ if __name__ == '__main__':
     full_dataset = datasets.load_data(name=global_args.dataset, num_partitions=1, split='iid', seed=global_args.random_seed, global_args=global_args)
     train_data = full_dataset.load_partition(partition_id=0)
 
-    subset_indices = range(0, 32)  # Only use 32 images for the test
-    train_data_subset = Subset(full_dataset, subset_indices)
-    train_dataloader = datasets.DataLoader(train_data_subset, batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
+
+    if global_args.small_test_run: train_data = datasets.Subset(full_dataset,
+                                                             range(0, 32))  # Only use 32 samples for the test
+    train_dataloader = datasets.DataLoader(train_data, batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
     test_ds = full_dataset.load_test_set()
-    subset_indices = range(0, 32)  # Only use 32 images for the test
-    test_data_subset = Subset(test_ds, subset_indices)
-    test_dataloader = datasets.DataLoader(test_data_subset, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
+    if global_args.small_test_run: test_ds = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
+    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
     full_model, trainer = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
     # full_model = full_model.switch_to_device(device)

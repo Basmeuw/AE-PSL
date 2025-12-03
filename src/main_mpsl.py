@@ -6,6 +6,7 @@ import torch
 
 import available_datasets as datasets
 import models
+from models import IdentityAE
 from trainers.implementations.experiment_results import ExperimentResults
 from trainers.implementations.experiment_trainer import ExperimentTrainer
 from utils.argument_utils import build_base_argument_parser, \
@@ -110,10 +111,12 @@ if __name__ == '__main__':
         raise Exception(f'total_batch_size > chosen batch_size ({total_batch_size} > {global_args.batch_size})')
 
     full_dataset = datasets.load_data(name=global_args.dataset, num_partitions=global_args.nr_of_clients, split=global_args.dataset_split_type, seed=global_args.random_seed, global_args=global_args)
+
     test_ds = full_dataset.load_test_set()
+    if global_args.small_test_run: test_ds = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
     test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.test_num_workers, collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
-    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(global_args, device)
+    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(global_args, device, IdentityAE())
     server_model = server_model.switch_to_device(device)
 
     client_dataloaders = dict()
@@ -129,6 +132,7 @@ if __name__ == '__main__':
 
     for client_id in range(global_args.nr_of_clients):
         client_train_data = full_dataset.load_partition(partition_id=client_id)
+        if global_args.small_test_run: client_train_data = datasets.Subset(client_train_data, range(0, 32))  # Only use 32 samples for the test
         client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
         client_dataloaders[client_id] = client_train_dataloader

@@ -52,7 +52,7 @@ def get_centralized_model_and_trainer(global_args: Namespace, device: torch.devi
     else:
         raise NotImplementedError('Chosen model is currently not supported.')
 
-# Choose between models TODO
+
 def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
 Any, ExperimentTrainer):
     if global_args.model.upper() not in SupportedModel.__members__.keys():
@@ -99,7 +99,7 @@ def get_split_model_and_trainer_vit(global_args: Namespace, auto_encoder: Identi
     dataset = global_args.dataset
     if dataset == 'cifar100':
         from src.models.vision_transformer.implementations.unimodal.image_classification.models import get_split_model as get_split_model_vit
-        return get_split_model_vit(
+        client_model, server_model, client_model_requires_any_grad = get_split_model_vit(
             auto_encoder=auto_encoder,
             split_layer=global_args.split_layer,
             use_lora=global_args.use_lora,
@@ -107,7 +107,9 @@ def get_split_model_and_trainer_vit(global_args: Namespace, auto_encoder: Identi
             lora_alpha=global_args.lora_alpha,
             num_classes=100,
             device=device
-        ), classification_mpsl_trainer()
+        )
+
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(fusion_type=global_args.fusion_type, modalities=[InputModality.IMAGE])
     else:
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 
