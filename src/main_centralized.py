@@ -62,8 +62,7 @@ if __name__ == '__main__':
     train_data = full_dataset.load_partition(partition_id=0)
 
 
-    if global_args.small_test_run: train_data = datasets.Subset(full_dataset,
-                                                             range(0, 32))  # Only use 32 samples for the test
+    if global_args.small_test_run: train_data = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
     train_dataloader = datasets.DataLoader(train_data, batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
     test_ds = full_dataset.load_test_set()
@@ -71,8 +70,8 @@ if __name__ == '__main__':
     test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
     full_model, trainer = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
-    # full_model = full_model.switch_to_device(device)
-    # TODO fix device switching properly
+    full_model = full_model.switch_to_device(device)
+
 
     print(f'trainable params centralized model: {sum(p.numel() for p in full_model.parameters() if p.requires_grad)} | all: {sum(p.numel() for p in full_model.parameters())}')
 

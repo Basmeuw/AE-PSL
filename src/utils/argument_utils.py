@@ -57,8 +57,8 @@ def build_base_argument_parser():
     parser.add_argument('--split_layer', type=int, default=0, help='Where the model should be split and the AE inserted if applicable')
     # LoRA
     parser.add_argument('--use_lora', dest='use_lora', type=lambda x: bool(strtobool(x)), default=True, help='Whether LoRA should be used to finetune the model.')
-    parser.add_argument('--lora_rank', type=int, default=4, help='The rank of the LoRA matrices.')
-    parser.add_argument('--lora_alpha', type=int, default=4, help='The alpha scaling factor of LoRA.')
+    parser.add_argument('--lora_rank', type=int, default=16, help='The rank of the LoRA matrices.')
+    parser.add_argument('--lora_alpha', type=int, default=32, help='The alpha scaling factor of LoRA.')
 
     # == Misc ==
     parser.add_argument('--batch_size', type=int, default=128, help='The batch size on the server. This means that with a batch_size of 500 with 25 clients, each client would have a mini-batch size of 20.')
