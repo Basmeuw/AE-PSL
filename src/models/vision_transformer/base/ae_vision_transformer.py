@@ -2,8 +2,9 @@ import torch
 import torchvision
 from torch import nn
 
-from src.models.auto_encoder import IdentityAE
-from src.models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
+from models.auto_encoder import IdentityAE
+from models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
+from models.meta_transformer.base.data2seq import InputModality
 
 
 class AEVisionTransformer(VisionTransformerBase):
@@ -22,10 +23,14 @@ class AEVisionTransformer(VisionTransformerBase):
         if split_layer < 0 or split_layer > len(encoder_layers):
             raise ValueError(f"Split layer must be between 0 and {len(encoder_layers)}")
 
+        if auto_encoder is None:
+            raise ValueError("Auto-encoder instance must be provided to AEVisionTransformer constructor.")
+
         encoder_layers.insert(split_layer, auto_encoder)
         self.vit.encoder.layers = nn.Sequential(*encoder_layers)
 
     def forward_full(self, x):
+        x = x[InputModality.IMAGE]
         return self.vit(x)
 
 
@@ -34,6 +39,8 @@ class AEVisionTransformer(VisionTransformerBase):
         Executes the model from the AE Decoder to the final classification head.
         Input x is the compressed latent representation.
         """
+        x = x[InputModality.IMAGE]
+
         # 1. AE Decoder
         ae_module = self.vit.encoder.layers[self.split_layer]
         x = ae_module.decode(x)

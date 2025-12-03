@@ -9,9 +9,9 @@ from PIL import Image
 from transformers import AutoImageProcessor
 from torch.utils.data import DataLoader, Subset
 
-from src.available_datasets import CIFAR100
-from src.models.auto_encoder import IdentityAE
-from src.models.meta_transformer.base.data2seq import InputModality
+from available_datasets import CIFAR100
+from models.auto_encoder import IdentityAE
+from models.meta_transformer.base.data2seq import InputModality
 from src.models.misc.wrapper_model import WrapperModel
 from src.models.vision_transformer.base.ae_vision_transformer import AEVisionTransformer
 from src.utils.mpsl_utils import client_model_requires_any_grad

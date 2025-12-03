@@ -1,7 +1,7 @@
 import torchvision
 from torch import nn
 
-from src.models.lora_layer import LoRALinear
+from models.lora_layer import LoRALinear
 
 
 class VisionTransformerBase(nn.Module):

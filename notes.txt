@@ -13,7 +13,7 @@ The Client and Server models then use this centralized base model to init their 
 
 
 Changes to be made:
-- Need to add num_classes as an argument to the factory methods to create the base model.
+
 
 
 Plan:
@@ -23,3 +23,15 @@ First create a
 Need to ensure that the AE is actually trained with the rest of the model.
 
 
+Training:
+
+
+
+Did the previous work not use early saving of the model?
+
+To-do:
+- fix error
+- fix device switching
+- adapt training methods
+- implement AE training method
+- create multi run structure

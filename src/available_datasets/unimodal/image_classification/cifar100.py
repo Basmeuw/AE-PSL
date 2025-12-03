@@ -7,7 +7,7 @@ import torchvision
 from PIL import Image
 from transformers import AutoImageProcessor
 
-from src.models.meta_transformer.base.data2seq import InputModality
+from models.meta_transformer.base.data2seq import InputModality
 
 ssl._create_default_https_context = ssl._create_unverified_context
 

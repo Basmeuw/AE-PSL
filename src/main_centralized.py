@@ -1,9 +1,10 @@
 from argparse import Namespace
 
 import torch
+from torch.utils.data import Subset
 
 import available_datasets as datasets
-from models import get_centralized_model_and_trainer
+from models import get_centralized_model_and_trainer, IdentityAE
 from trainers.implementations.experiment_results import ExperimentResults
 from utils.argument_utils import build_base_argument_parser, validate_base_argument_constraints, \
     expand_argument_parser_with_adapter_approach_parameters, set_env_variables
@@ -59,13 +60,19 @@ if __name__ == '__main__':
 
     full_dataset = datasets.load_data(name=global_args.dataset, num_partitions=1, split='iid', seed=global_args.random_seed, global_args=global_args)
     train_data = full_dataset.load_partition(partition_id=0)
-    train_dataloader = datasets.DataLoader(train_data, batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
+
+    subset_indices = range(0, 32)  # Only use 32 images for the test
+    train_data_subset = Subset(full_dataset, subset_indices)
+    train_dataloader = datasets.DataLoader(train_data_subset, batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
     test_ds = full_dataset.load_test_set()
-    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
+    subset_indices = range(0, 32)  # Only use 32 images for the test
+    test_data_subset = Subset(test_ds, subset_indices)
+    test_dataloader = datasets.DataLoader(test_data_subset, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
-    full_model, trainer = get_centralized_model_and_trainer(global_args, device)
-    full_model = full_model.switch_to_device(device)
+    full_model, trainer = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
+    # full_model = full_model.switch_to_device(device)
+    # TODO fix device switching properly
 
     print(f'trainable params centralized model: {sum(p.numel() for p in full_model.parameters() if p.requires_grad)} | all: {sum(p.numel() for p in full_model.parameters())}')
 

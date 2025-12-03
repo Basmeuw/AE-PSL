@@ -41,7 +41,7 @@ def build_base_argument_parser():
     # == Dataset and model ==
     parser.add_argument('--dataset', type=str, required=True, choices=dataloaders.keys(), help='The dataset that should be used.')
 
-    parser.add_argument('--model', type=str, help='The model that should be used.', choices=[x.lower() for x in SupportedModel.__members__.keys()], default='meta_transformer')
+    parser.add_argument('--model', type=str, help='The model that should be used.', choices=[x.lower() for x in SupportedModel.__members__.keys()], default='vit')
     parser.add_argument('--fusion_type', type=str, default='default', help='The type of fusion that should be used, if applicable. The \'default\' type has been used for the reported experiments. For available options, please refer to the model implementation of the chosen task.')
     parser.add_argument('--trainable_params_key', type=str, default='default', help='The key for the dictionary of trainable parameters. See MetaTransformerBase for all possible options. If no choice is made, the default is used, which is different per model implementation.', choices=trainable_params_options.keys())
     parser.add_argument('--use_pre_layer_norm', dest='use_pre_layer_norm', type=lambda x: bool(strtobool(x)), default=True, help='Whether pre-layer normalization should be used.')
@@ -53,6 +53,12 @@ def build_base_argument_parser():
 
     parser.add_argument('--use_clip_encoder_for_text_embeddings', dest='use_clip_encoder_for_text_embeddings', type=lambda x: bool(strtobool(x)), default=True, help='Whether the clip encoder should be used for encoding text, after text tokenization.')
     parser.add_argument('--vit_base', type=str, default='None', help='For manually overriding the ViT base that is used. All default experiments (those not in the ablation studies), are executed without touching this setting.')
+
+    parser.add_argument('--split_layer', type=int, default=0, help='Where the model should be split and the AE inserted if applicable')
+    # LoRA
+    parser.add_argument('--use_lora', dest='use_lora', type=lambda x: bool(strtobool(x)), default=True, help='Whether LoRA should be used to finetune the model.')
+    parser.add_argument('--lora_rank', type=int, default=4, help='The rank of the LoRA matrices.')
+    parser.add_argument('--lora_alpha', type=int, default=4, help='The alpha scaling factor of LoRA.')
 
     # == Misc ==
     parser.add_argument('--batch_size', type=int, default=128, help='The batch size on the server. This means that with a batch_size of 500 with 25 clients, each client would have a mini-batch size of 20.')

@@ -3,9 +3,11 @@ import copy
 import torch
 from torch import nn
 
-from src.models.auto_encoder import IdentityAE
-from src.models.vision_transformer.base.ae_vision_transformer import AEVisionTransformer
-from src.utils.mpsl_utils import client_model_requires_any_grad
+from models.auto_encoder import IdentityAE
+from models.vision_transformer.base.ae_vision_transformer import AEVisionTransformer
+
+from models.meta_transformer.base.data2seq import InputModality
+from utils.mpsl_utils import client_model_requires_any_grad
 
 centralized_base_model = None
 
@@ -28,7 +30,7 @@ def _initialize_base_model(auto_encoder: IdentityAE, split_layer: int, use_lora:
 
 def get_centralized_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
     _initialize_base_model(auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
-
+    print("centralized_base_model initialized as" , type(centralized_base_model))
     return centralized_base_model
 
 def get_split_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
@@ -94,6 +96,8 @@ class ClientModel(nn.Module):
 
     def forward(self, x):
         # 1. Patch Embedding Logic
+        x = x[InputModality.IMAGE]
+
         n, c, h, w = x.shape
         p = self.patch_size
         n_h = h // p
