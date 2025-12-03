@@ -5,6 +5,7 @@ from torch.utils.data import Subset
 
 import available_datasets as datasets
 from models import get_centralized_model_and_trainer, IdentityAE
+from trainers.implementations.classification.profiled_centralized_trainer import ProfiledTrainer
 from trainers.implementations.experiment_results import ExperimentResults
 from utils.argument_utils import build_base_argument_parser, validate_base_argument_constraints, \
     expand_argument_parser_with_adapter_approach_parameters, set_env_variables
@@ -69,9 +70,10 @@ if __name__ == '__main__':
     if global_args.small_test_run: test_ds = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
     test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
-    full_model, trainer = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
+    full_model, _ = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
     full_model = full_model.switch_to_device(device)
 
+    trainer = ProfiledTrainer()
 
     print(f'trainable params centralized model: {sum(p.numel() for p in full_model.parameters() if p.requires_grad)} | all: {sum(p.numel() for p in full_model.parameters())}')
 
