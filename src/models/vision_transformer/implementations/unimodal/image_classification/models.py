@@ -57,6 +57,7 @@ class CentralizedModel(AEVisionTransformer):
 
     def forward(self, x):
         x = x[InputModality.IMAGE]
+        x = x.to(self.device)
         # Since the AE is embedded within the ViT encoder, we can use the standard forward method
         return self.vit(x)
 
@@ -100,9 +101,10 @@ class ClientModel(nn.Module):
     def forward(self, x):
         # Most of this is directly from original ViT implementation
 
-        # 1. Patch Embedding Logic
         x = x[InputModality.IMAGE]
+        x = x.to(self.device)
 
+        # 1. Patch Embedding Logic
         n, c, h, w = x.shape
         p = self.patch_size
         torch._assert(h == self.image_size, f"Wrong image height! Expected {self.image_size} but got {h}!")
@@ -156,6 +158,8 @@ class ServerModel(nn.Module):
         self.heads = centralized_base_model.vit.heads
 
     def forward(self, x):
+        # x = x.to(self.device)
+
         # As per original ViT implementation
         x = self.ae_decoder(x)
         x = self.server_blocks(x)
