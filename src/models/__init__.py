@@ -3,40 +3,83 @@ from enum import Enum
 from typing import Any
 
 import torch
-
-from models.meta_transformer.base.data2seq import InputModality
-from models.meta_transformer.implementations.unimodal.image_classification.models import get_split_model as get_meta_cifar_100_split_model, get_centralized_model as get_meta_cifar_100_centralized_model
-
-from models.meta_transformer.implementations.multimodal.vqa.models import get_split_model as get_meta_vqa_split_model, get_centralized_model as get_meta_vqa_centralized_model
-from models.meta_transformer.implementations.multimodal.vqa.models import get_federated_model as get_meta_vqa_federated_model
-
 from models.auto_encoder import IdentityAE
-from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import get_split_model as get_meta_image_text_retrieval_split_model, get_centralized_model as get_meta_image_text_retrieval_centralized_model
-from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import get_federated_model as get_meta_image_text_retrieval_federated_model
-from models.meta_transformer.implementations.multimodal.action_recognition.models import get_split_model as get_meta_action_recognition_split_model, get_centralized_model as get_meta_action_recognition_centralized_model
-from models.meta_transformer.implementations.multimodal.action_recognition.models import get_federated_model as get_meta_action_recognition_federated_model
-from models.meta_transformer.implementations.multimodal.emotion_recognition.models import get_split_model as get_meta_meld_split_model, get_centralized_model as get_meta_emotion_recognition_centralized_model
-from models.meta_transformer.implementations.multimodal.emotion_recognition.models import get_federated_model as get_meta_meld_federated_model
-
-from trainers.implementations.classification.centralized_trainer import CentralizedTrainer as classification_centralized_trainer
-from trainers.implementations.experiment_trainer import ExperimentTrainer
-from trainers.implementations.image_text_retrieval.centralized_trainer import CentralizedTrainer as image_text_retrieval_centralized_trainer
-
+from models.meta_transformer.base.data2seq import InputModality
+from models.meta_transformer.implementations.multimodal.action_recognition.models import \
+    get_federated_model as get_meta_action_recognition_federated_model
+from models.meta_transformer.implementations.multimodal.action_recognition.models import \
+    get_split_model as get_meta_action_recognition_split_model, \
+    get_centralized_model as get_meta_action_recognition_centralized_model
+from models.meta_transformer.implementations.multimodal.emotion_recognition.models import \
+    get_federated_model as get_meta_meld_federated_model
+from models.meta_transformer.implementations.multimodal.emotion_recognition.models import \
+    get_split_model as get_meta_meld_split_model, \
+    get_centralized_model as get_meta_emotion_recognition_centralized_model
+from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import \
+    get_federated_model as get_meta_image_text_retrieval_federated_model
+from models.meta_transformer.implementations.multimodal.image_text_retrieval.models import \
+    get_split_model as get_meta_image_text_retrieval_split_model, \
+    get_centralized_model as get_meta_image_text_retrieval_centralized_model
+from models.meta_transformer.implementations.multimodal.vqa.models import \
+    get_federated_model as get_meta_vqa_federated_model
+from models.meta_transformer.implementations.multimodal.vqa.models import get_split_model as get_meta_vqa_split_model, \
+    get_centralized_model as get_meta_vqa_centralized_model
+from models.meta_transformer.implementations.unimodal.image_classification.models import \
+    get_split_model as get_meta_cifar_100_split_model, get_centralized_model as get_meta_cifar_100_centralized_model
+from trainers.implementations.classification.centralized_trainer import \
+    CentralizedTrainer as classification_centralized_trainer
+from trainers.implementations.classification.fl_trainer import FLTrainer as classification_fl_trainer
 from trainers.implementations.classification.mpsl_trainer import MPSLTrainer as classification_mpsl_trainer
+from trainers.implementations.experiment_trainer import ExperimentTrainer
+from trainers.implementations.image_text_retrieval.centralized_trainer import \
+    CentralizedTrainer as image_text_retrieval_centralized_trainer
+from trainers.implementations.image_text_retrieval.fl_trainer import FLTrainer as image_text_retrieval_fl_trainer
 from trainers.implementations.image_text_retrieval.mpsl_trainer import MPSLTrainer as image_text_retrieval_mpsl_trainer
 
-from trainers.implementations.classification.fl_trainer import FLTrainer as classification_fl_trainer
-from trainers.implementations.image_text_retrieval.fl_trainer import FLTrainer as image_text_retrieval_fl_trainer
+from src.models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
 
 
 class SupportedModel(Enum):
-
     META_TRANSFORMER = 'meta_transformer'
     VIT_B_16 = 'vit_b_16'
     VIT_B_32 = 'vit_b_32'
 
-# Choose between models
-def get_centralized_model_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (Any, ExperimentTrainer):
+# ========= BASE MODEL SELECTION ========= #
+
+def get_base_model(global_args: Namespace, device: torch.device) -> Any:
+    model = SupportedModel[global_args.model.upper()]
+
+    if model is SupportedModel.META_TRANSFORMER:
+        return NotImplementedError(
+            f"Meta Transformer does not have a base model, since it does not need to be injected with a bottleneck")
+    elif global_args.model.lower().startswith("vit"):
+        return get_base_model_vit(global_args, device)
+    else:
+        raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
+
+
+def get_base_model_vit(global_args: Namespace, device: torch.device):
+    dataset = global_args.dataset
+
+    if dataset == 'cifar100':
+        from models.vision_transformer.implementations.unimodal.image_classification.models import \
+            get_base_model_vit as get_base_model_vit_impl
+        return get_base_model_vit_impl(
+            vit_type=global_args.model,
+            use_lora=global_args.use_lora,
+            lora_rank=global_args.lora_rank,
+            lora_alpha=global_args.lora_alpha,
+            num_classes=100,
+            device=device
+        )
+
+
+# ========= INJECTED MODEL AND TRAINER SELECTION ========= #
+
+# TODO this code might get messy with more models
+# If there will ever be more models, need to create a base class for all base models
+def get_centralized_model_and_trainer(global_args: Namespace, device: torch.device, base_model=None,
+                                      auto_encoder: IdentityAE = None) -> (Any, ExperimentTrainer):
     model = SupportedModel[global_args.model.upper()]
 
     if model is SupportedModel.META_TRANSFORMER:
@@ -44,13 +87,15 @@ def get_centralized_model_and_trainer(global_args: Namespace, device: torch.devi
     elif global_args.model.lower().startswith("vit"):
         if auto_encoder is None:
             raise ValueError("Auto-encoder instance must be provided to get_centralized_model_and_trainer for VIT model.")
-        return get_centralized_model_and_trainer_vit(global_args, auto_encoder, device)
+        if base_model is None:
+            raise ValueError("Base model instance must be provided to get_centralized_model_and_trainer for VIT model.")
+        return get_centralized_model_and_trainer_vit(global_args, base_model, auto_encoder, device)
     else:
         raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
 
-def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
-Any, ExperimentTrainer):
+def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.device, base_model=None, auto_encoder: IdentityAE = None) -> (
+        Any, ExperimentTrainer):
     if global_args.model.upper() not in SupportedModel.__members__.keys():
         raise NotImplementedError('Chosen model is currently not supported.')
 
@@ -60,13 +105,16 @@ Any, ExperimentTrainer):
     elif global_args.model.lower().startswith("vit"):
         if auto_encoder is None:
             raise ValueError("Auto-encoder instance must be provided to get_centralized_model_and_trainer for VIT model.")
-        return get_split_model_and_trainer_vit(global_args, auto_encoder, device)
+        if base_model is None:
+            raise ValueError("Base model instance must be provided to get_centralized_model_and_trainer for VIT model.")
+        return get_split_model_and_trainer_vit(global_args, base_model, auto_encoder, device)
     else:
         raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
+
 # Choose between models
 def get_federated_model_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
-Any, ExperimentTrainer):
+        Any, ExperimentTrainer):
     if global_args.model.upper() not in SupportedModel.__members__.keys():
         raise NotImplementedError('Chosen model is currently not supported.')
 
@@ -78,43 +126,51 @@ Any, ExperimentTrainer):
     else:
         raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
-def get_centralized_model_and_trainer_vit(global_args: Namespace, auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
+
+
+
+
+
+
+def get_centralized_model_and_trainer_vit(global_args: Namespace, base_model: VisionTransformerBase,
+                                          auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
     dataset = global_args.dataset
     if dataset == 'cifar100':
-        from models.vision_transformer.implementations.unimodal.image_classification.models import get_centralized_model as get_centralized_model_vit
+        from models.vision_transformer.implementations.unimodal.image_classification.models import \
+            get_centralized_model as get_centralized_model_vit
         return get_centralized_model_vit(
-            vit_type=global_args.model,
+            base_model=base_model,
             auto_encoder=auto_encoder,
             split_layer=global_args.split_layer,
-            use_lora=global_args.use_lora,
-            lora_rank=global_args.lora_rank,
-            lora_alpha=global_args.lora_alpha,
             num_classes=100,
             device=device
         ), classification_centralized_trainer()
     else:
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 
-def get_split_model_and_trainer_vit(global_args: Namespace, auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
+
+def get_split_model_and_trainer_vit(global_args: Namespace, base_model: VisionTransformerBase, auto_encoder: IdentityAE, device: torch.device) -> (Any,
+                                                                                                                ExperimentTrainer):
     dataset = global_args.dataset
     if dataset == 'cifar100':
-        from src.models.vision_transformer.implementations.unimodal.image_classification.models import get_split_model as get_split_model_vit
+        from src.models.vision_transformer.implementations.unimodal.image_classification.models import \
+            get_split_model as get_split_model_vit
         client_model, server_model, client_model_requires_any_grad = get_split_model_vit(
-            vit_type=global_args.model,
+            base_model=base_model,
             auto_encoder=auto_encoder,
             split_layer=global_args.split_layer,
-            use_lora=global_args.use_lora,
-            lora_rank=global_args.lora_rank,
-            lora_alpha=global_args.lora_alpha,
             num_classes=100,
             device=device
         )
 
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(fusion_type=global_args.fusion_type, modalities=[InputModality.IMAGE])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            fusion_type=global_args.fusion_type, modalities=[InputModality.IMAGE])
     else:
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 
-def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (Any, ExperimentTrainer):
+
+def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (Any,
+                                                                                                       ExperimentTrainer):
     dataset = global_args.dataset
 
     if global_args.model.upper() not in SupportedModel.__members__.keys():
@@ -189,9 +245,11 @@ def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, dev
             include_image_adapter=global_args.include_image_adapter,
             include_text_adapter=global_args.include_text_adapter,
             include_unified_adapter=global_args.include_unified_adapter
-        ), image_text_retrieval_fl_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size, move_dist_matrix_to_cpu=global_args.move_dist_matrix_to_cpu)
+        ), image_text_retrieval_fl_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size,
+                                           move_dist_matrix_to_cpu=global_args.move_dist_matrix_to_cpu)
     elif dataset == 'coco-retrieval':
-        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN
+        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, \
+            TEST_SET_LEN
 
         return get_meta_image_text_retrieval_federated_model(
             use_pre_layer_norm=global_args.use_pre_layer_norm,
@@ -206,7 +264,8 @@ def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, dev
             include_image_adapter=global_args.include_image_adapter,
             include_text_adapter=global_args.include_text_adapter,
             include_unified_adapter=global_args.include_unified_adapter
-        ), image_text_retrieval_fl_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size, move_dist_matrix_to_cpu=global_args.move_dist_matrix_to_cpu)
+        ), image_text_retrieval_fl_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size,
+                                           move_dist_matrix_to_cpu=global_args.move_dist_matrix_to_cpu)
     elif dataset == 'ucf101':
         from available_datasets.multimodal.action_recognition.ucf_101 import NR_OF_CLASSES
 
@@ -266,7 +325,8 @@ def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, dev
         raise NotImplementedError('Chosen model\'s dataset implementation is currently not supported.')
 
 
-def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> ((Any, Any, bool), ExperimentTrainer):
+def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (
+        (Any, Any, bool), ExperimentTrainer):
     dataset = global_args.dataset
 
     if global_args.model.upper() not in SupportedModel.__members__.keys():
@@ -300,7 +360,8 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
         )
 
         # Note usage of client_model.fusion_type instead of args.fusion_type; The latter might still be 'default' that has yet to be parsed, whereas the former will always be parsed.
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(client_model.fusion_type, [InputModality.IMAGE, InputModality.TEXT])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            client_model.fusion_type, [InputModality.IMAGE, InputModality.TEXT])
     elif dataset == 't4sa':
         from available_datasets.multimodal.sentiment_analysis.t4sa import NR_OF_CLASSES
 
@@ -318,7 +379,8 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
         )
 
         # Note usage of client_model.fusion_type instead of args.fusion_type; The latter might still be 'default' that has yet to be parsed, whereas the former will always be parsed.
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(client_model.fusion_type, [InputModality.IMAGE, InputModality.TEXT])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            client_model.fusion_type, [InputModality.IMAGE, InputModality.TEXT])
 
     elif dataset == 'flickr30k':
         from available_datasets.multimodal.image_text_retrieval.flickr30k import NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN
@@ -334,7 +396,8 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
             device=device
         ), image_text_retrieval_mpsl_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size)
     elif dataset == 'coco-retrieval':
-        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN
+        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, \
+            TEST_SET_LEN
 
         return get_meta_image_text_retrieval_split_model(
             use_pre_layer_norm=global_args.use_pre_layer_norm,
@@ -363,7 +426,8 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
             num_classes=NR_OF_CLASSES
         )
         # Note usage of client_model.fusion_type instead of args.fusion_type; The latter might still be 'default' that has yet to be parsed, whereas the former will always be parsed.
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(client_model.fusion_type, [InputModality.IMAGE, InputModality.AUDIO])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            client_model.fusion_type, [InputModality.IMAGE, InputModality.AUDIO])
     elif dataset == 'kinetics-sounds':
         from available_datasets.multimodal.action_recognition.kinetics_sounds import NR_OF_CLASSES
 
@@ -380,7 +444,8 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
             num_classes=NR_OF_CLASSES
         )
         # Note usage of client_model.fusion_type instead of args.fusion_type; The latter might still be 'default' that has yet to be parsed, whereas the former will always be parsed.
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(client_model.fusion_type, [InputModality.IMAGE, InputModality.AUDIO])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            client_model.fusion_type, [InputModality.IMAGE, InputModality.AUDIO])
     elif dataset == 'meld':
         from available_datasets.multimodal.emotion_recognition.meld import NR_OF_CLASSES
 
@@ -399,12 +464,14 @@ def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, de
         )
 
         # Note usage of client_model.fusion_type instead of args.fusion_type; The latter might still be 'default' that has yet to be parsed, whereas the former will always be parsed.
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(client_model.fusion_type, [InputModality.TEXT, InputModality.AUDIO])
+        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
+            client_model.fusion_type, [InputModality.TEXT, InputModality.AUDIO])
     else:
         raise NotImplementedError('Chosen model\'s dataset implementation is currently not supported.')
 
 
-def get_centralized_model_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (Any, ExperimentTrainer):
+def get_centralized_model_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (Any,
+                                                                                                         ExperimentTrainer):
     dataset = global_args.dataset
 
     if global_args.model.upper() not in SupportedModel.__members__.keys():
@@ -478,7 +545,8 @@ def get_centralized_model_and_trainer_meta_transformer(global_args: Namespace, d
             include_unified_adapter=global_args.include_unified_adapter
         ), image_text_retrieval_centralized_trainer(NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN, global_args.batch_size)
     elif dataset == 'coco-retrieval':
-        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, TEST_SET_LEN
+        from available_datasets.multimodal.image_text_retrieval.coco_retrieval import NR_OF_CAPTIONS_PER_IMAGE, \
+            TEST_SET_LEN
 
         return get_meta_image_text_retrieval_centralized_model(
             use_pre_layer_norm=global_args.use_pre_layer_norm,

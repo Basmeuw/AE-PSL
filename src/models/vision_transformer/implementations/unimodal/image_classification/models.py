@@ -9,19 +9,28 @@ from models.vision_transformer.base.ae_vision_transformer import AEVisionTransfo
 from models.meta_transformer.base.data2seq import InputModality
 from utils.mpsl_utils import client_model_requires_any_grad
 
+from src.models import VisionTransformerBase
+
 centralized_base_model = None
 
-def _initialize_base_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+def get_base_model_vit(vit_type: str, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    return VisionTransformerBase(vit_type=vit_type,
+                                 use_lora=use_lora,
+                                 lora_rank=lora_rank,
+                                 lora_alpha=lora_alpha,
+                                 num_classes=num_classes,
+                                 device=device)
+
+
+# Factory method
+def _initialize_centralized_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
     global centralized_base_model
 
     if centralized_base_model is None:
         centralized_base_model = CentralizedModel(
-            vit_type=vit_type,
+            base_model=base_model,
             auto_encoder=auto_encoder,
             split_layer=split_layer,
-            use_lora=use_lora,
-            lora_rank=lora_rank,
-            lora_alpha=lora_alpha,
             num_classes=num_classes,
             device=device,
         )
@@ -29,13 +38,14 @@ def _initialize_base_model(vit_type: str, auto_encoder: IdentityAE, split_layer:
 
     return centralized_base_model
 
-def get_centralized_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
-    _initialize_base_model(vit_type, auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
-    print("centralized_base_model initialized as" , type(centralized_base_model))
+# Get the AE-injected central model
+def get_centralized_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
+    _initialize_centralized_model(base_model, auto_encoder, split_layer, num_classes, device)
+
     return centralized_base_model
 
-def get_split_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
-    _initialize_base_model(vit_type, auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
+def get_split_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
+    _initialize_centralized_model(base_model, auto_encoder, split_layer, num_classes, device)
 
     _client_model = ClientModel(device=device)
 
@@ -43,14 +53,11 @@ def get_split_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, u
 
 
 class CentralizedModel(AEVisionTransformer):
-    def __init__(self, vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    def __init__(self, base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
         super().__init__(
-            vit_type=vit_type,
+            vit=base_model,
             auto_encoder=auto_encoder,
             split_layer=split_layer,
-            use_lora=use_lora,
-            lora_rank=lora_rank,
-            lora_alpha=lora_alpha,
             num_classes=num_classes,
             device=device,
         )

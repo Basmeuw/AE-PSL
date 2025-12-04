@@ -7,6 +7,7 @@ import torch
 import available_datasets as datasets
 import models
 from models import IdentityAE
+from src.models import get_base_model
 from trainers.implementations.experiment_results import ExperimentResults
 from trainers.implementations.experiment_trainer import ExperimentTrainer
 from utils.argument_utils import build_base_argument_parser, \
@@ -116,7 +117,9 @@ if __name__ == '__main__':
     if global_args.small_test_run: test_ds = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
     test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.test_num_workers, collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
-    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(global_args, device, IdentityAE())
+    base_model = get_base_model(global_args, device=device)
+
+    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(global_args, device, base_model, IdentityAE())
     server_model = server_model.switch_to_device(device)
 
     client_dataloaders = dict()

@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Subset
 
 import available_datasets as datasets
-from models import get_centralized_model_and_trainer, IdentityAE
+from models import get_centralized_model_and_trainer, IdentityAE, get_base_model
 from trainers.implementations.classification.profiled_centralized_trainer import ProfiledTrainer
 from trainers.implementations.experiment_results import ExperimentResults
 from utils.argument_utils import build_base_argument_parser, validate_base_argument_constraints, \
@@ -70,7 +70,11 @@ if __name__ == '__main__':
     if global_args.small_test_run: test_ds = datasets.Subset(test_ds, range(0, len(test_ds)//4))  # Only use 32 samples for the test
     test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
 
-    full_model, trainer = get_centralized_model_and_trainer(global_args, device, auto_encoder=IdentityAE())
+    # First load the base model, which is used to retrieve intermediate activations for the auto-encoder training
+    base_model = get_base_model(global_args, device)
+
+    # Using the base model and the AE, load the full centralized model and the trainer
+    full_model, trainer = get_centralized_model_and_trainer(global_args, device, base_model=base_model, auto_encoder=IdentityAE())
     full_model = full_model.switch_to_device(device)
 
     # enable profiling
