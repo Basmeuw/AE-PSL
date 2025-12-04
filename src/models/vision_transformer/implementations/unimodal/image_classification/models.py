@@ -11,11 +11,12 @@ from utils.mpsl_utils import client_model_requires_any_grad
 
 centralized_base_model = None
 
-def _initialize_base_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+def _initialize_base_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
     global centralized_base_model
 
     if centralized_base_model is None:
         centralized_base_model = CentralizedModel(
+            vit_type=vit_type,
             auto_encoder=auto_encoder,
             split_layer=split_layer,
             use_lora=use_lora,
@@ -28,13 +29,13 @@ def _initialize_base_model(auto_encoder: IdentityAE, split_layer: int, use_lora:
 
     return centralized_base_model
 
-def get_centralized_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
-    _initialize_base_model(auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
+def get_centralized_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    _initialize_base_model(vit_type, auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
     print("centralized_base_model initialized as" , type(centralized_base_model))
     return centralized_base_model
 
-def get_split_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
-    _initialize_base_model(auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
+def get_split_model(vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    _initialize_base_model(vit_type, auto_encoder, split_layer, use_lora, lora_rank, lora_alpha, num_classes, device)
 
     _client_model = ClientModel(device=device)
 
@@ -42,8 +43,9 @@ def get_split_model(auto_encoder: IdentityAE, split_layer: int, use_lora: bool, 
 
 
 class CentralizedModel(AEVisionTransformer):
-    def __init__(self, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    def __init__(self, vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
         super().__init__(
+            vit_type=vit_type,
             auto_encoder=auto_encoder,
             split_layer=split_layer,
             use_lora=use_lora,

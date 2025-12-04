@@ -5,13 +5,22 @@ from models.lora_layer import LoRALinear
 
 
 class VisionTransformerBase(nn.Module):
-    def __init__(self, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    def __init__(self, vit_type: str, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
         super().__init__()
         self.use_lora = use_lora
 
-        print(f"Initializing ViT Base (Mode: {'LoRA' if use_lora else 'Full Fine-Tuning'})...")
-        weights = torchvision.models.ViT_B_16_Weights.DEFAULT
-        self.vit = torchvision.models.vit_b_16(weights=weights)
+        if vit_type == "vit_b_16":
+            print(f"Initializing ViT-B/16 (Mode: {'LoRA' if use_lora else 'Full Fine-Tuning'})...")
+            weights = torchvision.models.ViT_B_16_Weights.DEFAULT
+            self.vit = torchvision.models.vit_b_16(weights=weights)
+        elif vit_type == "vit_b_32":
+            print(f"Initializing ViT-B/32 (Mode: {'LoRA' if use_lora else 'Full Fine-Tuning'})...")
+            weights = torchvision.models.ViT_B_32_Weights.DEFAULT
+            self.vit = torchvision.models.vit_b_32(weights=weights)
+        else:
+            raise ValueError(f"Unsupported ViT type: {vit_type}")
+
+
         self.vit.to(device)
 
         # Replace with new head for the desired number of classes

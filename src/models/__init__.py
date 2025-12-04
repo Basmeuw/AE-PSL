@@ -29,28 +29,24 @@ from trainers.implementations.classification.fl_trainer import FLTrainer as clas
 from trainers.implementations.image_text_retrieval.fl_trainer import FLTrainer as image_text_retrieval_fl_trainer
 
 
-
-
 class SupportedModel(Enum):
 
     META_TRANSFORMER = 'meta_transformer'
-    VIT = 'vit'
+    VIT_B_16 = 'vit_b_16'
+    VIT_B_32 = 'vit_b_32'
 
 # Choose between models
 def get_centralized_model_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (Any, ExperimentTrainer):
-    if global_args.model.upper() not in SupportedModel.__members__.keys():
-        raise NotImplementedError('Chosen model is currently not supported.')
-
     model = SupportedModel[global_args.model.upper()]
 
     if model is SupportedModel.META_TRANSFORMER:
         return get_centralized_model_and_trainer_meta_transformer(global_args, device)
-    elif model is SupportedModel.VIT:
+    elif global_args.model.lower().startswith("vit"):
         if auto_encoder is None:
             raise ValueError("Auto-encoder instance must be provided to get_centralized_model_and_trainer for VIT model.")
         return get_centralized_model_and_trainer_vit(global_args, auto_encoder, device)
     else:
-        raise NotImplementedError('Chosen model is currently not supported.')
+        raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
 
 def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
@@ -61,11 +57,12 @@ Any, ExperimentTrainer):
     model = SupportedModel[global_args.model.upper()]
     if model is SupportedModel.META_TRANSFORMER:
         return get_split_model_pair_and_trainer_meta_transformer(global_args, device)
-    elif model is SupportedModel.VIT:
+    elif global_args.model.lower().startswith("vit"):
         if auto_encoder is None:
             raise ValueError("Auto-encoder instance must be provided to get_centralized_model_and_trainer for VIT model.")
         return get_split_model_and_trainer_vit(global_args, auto_encoder, device)
-
+    else:
+        raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
 # Choose between models
 def get_federated_model_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
@@ -76,14 +73,17 @@ Any, ExperimentTrainer):
     model = SupportedModel[global_args.model.upper()]
     if model is SupportedModel.META_TRANSFORMER:
         return get_federated_model_and_trainer_meta_transformer(global_args, device)
-    elif model is SupportedModel.VIT:
+    elif global_args.model.lower().startswith("vit"):
         raise NotImplementedError('VIT is currently not supported for FL.')
+    else:
+        raise NotImplementedError(f'Chosen model {global_args.model} is currently not supported.')
 
 def get_centralized_model_and_trainer_vit(global_args: Namespace, auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
     dataset = global_args.dataset
     if dataset == 'cifar100':
         from models.vision_transformer.implementations.unimodal.image_classification.models import get_centralized_model as get_centralized_model_vit
         return get_centralized_model_vit(
+            vit_type=global_args.model,
             auto_encoder=auto_encoder,
             split_layer=global_args.split_layer,
             use_lora=global_args.use_lora,
@@ -100,6 +100,7 @@ def get_split_model_and_trainer_vit(global_args: Namespace, auto_encoder: Identi
     if dataset == 'cifar100':
         from src.models.vision_transformer.implementations.unimodal.image_classification.models import get_split_model as get_split_model_vit
         client_model, server_model, client_model_requires_any_grad = get_split_model_vit(
+            vit_type=global_args.model,
             auto_encoder=auto_encoder,
             split_layer=global_args.split_layer,
             use_lora=global_args.use_lora,

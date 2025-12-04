@@ -1,16 +1,15 @@
-import torch
-import torchvision
-from torch import nn
-
 from models.auto_encoder import IdentityAE
-from models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
 from models.meta_transformer.base.data2seq import InputModality
+from models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
+from torch import nn
 
 
 class AEVisionTransformer(VisionTransformerBase):
-    def __init__(self, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
+    def __init__(self, vit_type: str, auto_encoder: IdentityAE, split_layer: int, use_lora: bool, lora_rank: int,
+                 lora_alpha: int, num_classes: int, device):
         # 1. Initialize Base (Handles LoRA vs Regular switch)
-        super().__init__(use_lora=use_lora,
+        super().__init__(vit_type=vit_type,
+                         use_lora=use_lora,
                          lora_rank=lora_rank,
                          lora_alpha=lora_alpha,
                          num_classes=num_classes,
@@ -54,7 +53,6 @@ class AEVisionTransformer(VisionTransformerBase):
     #     x = x.permute(0, 2, 1)
     #
     #     return x
-
 
     # def forward_server(self, x):
     #     """
