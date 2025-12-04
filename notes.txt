@@ -61,3 +61,6 @@ need 3 steps:
 - load the pre-trained model (VisionTransformerBase)
 - pass this model to AE pre-trainer
 - then get the AEVisionTransformer by passing VisionTransformerBase and the AE.
+
+
+Currently, we do not use validation loss to save the best model!. See if early stopping is necessary.

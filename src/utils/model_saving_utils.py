@@ -2,7 +2,9 @@ import os
 
 import torch
 
+from ae_trainers.implementations.ae_experiment_results import ExperimentResultsAE
 from trainers.implementations.experiment_results import ExperimentResults
+from utils.ae_registry_utils import filename_from_signature
 from utils.file_utils import save_object_to_json
 from utils.fl_utils import AGGREGATED_MODEL_NAME
 from utils.mpsl_utils import get_client_name
@@ -31,6 +33,8 @@ def _load_checkpoint(file_name, device):
 def save_centralized_model(centralized_model, desired_file_name):
     _save_object(centralized_model.state_dict(), desired_file_name)
 
+def save_ae_model(autoencoder_model, desired_file_name):
+    _save_object(autoencoder_model.state_dict(), desired_file_name)
 
 def save_split_model(client_model, server_model, desired_file_name):
     _save_object(
@@ -99,5 +103,18 @@ def save_experiment_results(experiment_results: ExperimentResults, desired_file_
         raise Exception('desired_file_name was None: cannot save results dict')
     else:
         full_file_path = os.path.join(os.environ['MODEL_WEIGHTS_DIR'], desired_file_name + '.json')
+
+        save_object_to_json(experiment_results.to_json(), full_file_path)
+
+def save_ae_experiment_results(experiment_results: ExperimentResultsAE, filename):
+    """
+    Attempts to save the results object that is a json object of all results (to provide more ease of use).
+    """
+
+
+    if filename is None:
+        raise Exception('desired_file_name was None: cannot save results dict')
+    else:
+        full_file_path = os.path.join(os.environ['AE_WEIGHTS_DIR'], filename, 'results.json')
 
         save_object_to_json(experiment_results.to_json(), full_file_path)

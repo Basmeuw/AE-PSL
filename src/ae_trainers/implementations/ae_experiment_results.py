@@ -14,3 +14,10 @@ class ExperimentResultsAE:
             self.test_metric.append(metric)
         else:
             self.train_metric.append(metric)
+
+    def to_json(self):
+        return {
+            "epochs": self.epochs,
+            "train_metric": self.train_metric,
+            "test_metric": self.test_metric,
+        }

@@ -4,7 +4,9 @@ from distutils.util import strtobool
 
 from available_datasets import dataloaders
 from models import SupportedModel
+from models.auto_encoder import AE_REGISTRY
 from models.meta_transformer.base.meta_transformer import trainable_params_options
+
 
 
 def validate_base_argument_constraints(argument_parser):
@@ -23,6 +25,7 @@ def set_env_variables(arguments):
     os.environ['PRE_PROCESSORS_CACHE_DIR'] = arguments.pre_processors_cache_dir
     os.environ['TOKENIZER_WEIGHTS_CACHE_DIR'] = arguments.tokenizer_weights_cache_dir
     os.environ['MODEL_WEIGHTS_DIR'] = arguments.model_weights_dir
+    os.environ['AE_WEIGHTS_DIR'] = arguments.ae_weights_dir
     os.environ['VIT_BASE'] = arguments.vit_base
 
 
@@ -92,6 +95,31 @@ def expand_argument_parser_with_adapter_approach_parameters(argument_parser):
 
     return argument_parser
 
+
+def expand_argument_parser_with_ae_pretraining_parameters(argument_parser):
+    # == For enabling AE pre-training ==
+    argument_parser.add_argument('--ae_use_existing', dest='ae_use_existing', type=lambda x: bool(strtobool(x)), default=False, help='Whether existing AE weights should be used, if available, rather than pre-training a new AE.')
+
+    argument_parser.add_argument('--ae_latent_dim', dest='ae_latent_dim',  type=int, default=384, help='The latent dimension of the AE.')
+    argument_parser.add_argument('--ae_type', dest='ae_type', type=str, default='identity', help='The type of AE that should be used.',
+                                 choices=AE_REGISTRY)
+
+    argument_parser.add_argument('--ae_pretrain_dataset', dest='ae_pretrain_dataset', type=str, default='cifar100', help='The dataset that should be used for AE pre-training.')
+    argument_parser.add_argument('--ae_pretrain_dataset_fraction', dest='ae_pretrain_dataset_fraction', type=float, default=1.0, help='The fraction of the AE pre-training dataset that should be used for AE pre-training.')
+
+    argument_parser.add_argument('--ae_pretrain_epochs', dest='ae_pretrain_epochs', type=int, default=50, help='The number of epochs to use for AE pre-training.')
+    argument_parser.add_argument('--ae_pretrain_batch_size', dest='ae_pretrain_batch_size', type=int, default=256, help='The batch size to use for AE pre-training.')
+    argument_parser.add_argument('--ae_pretrain_start_lr', dest='ae_pretrain_start_lr', type=float, default=1e-4, help='The starting learning rate to use for AE pre-training.')
+    argument_parser.add_argument('--ae_pretrain_optimizer', dest='ae_pretrain_optimizer', type=str, default='adam', help='The optimizer to use for AE pre-training.', choices=['adam', 'adamw', 'sgd'])
+    argument_parser.add_argument('--ae_pretrain_scheduler', dest='ae_pretrain_scheduler', type=str, default='step', help='The learning rate scheduler to use for AE pre-training.', choices=['step', 'cosine'])
+    argument_parser.add_argument('--ae_pretrain_scheduler_step_size', dest='ae_pretrain_scheduler_step_size', type=int, default=5)
+    argument_parser.add_argument('--ae_pretrain_loss_fn', dest='ae_pretrain_loss_fn', type=str, default='mse', help='The loss function to use for AE pre-training.', choices=['mse', 'l1'])
+
+    argument_parser.add_argument('--ae_weights_dir', dest='ae_weights_dir', type=str, default='../../shared_data/model_checkpoints', help='The directory where to scan for existing pre_trained AE weights')
+    argument_parser.add_argument('--ae_specific_weights_path', dest='ae_specific_weights_path', type=str, default=None, help='If specified, this AE weights path will be used to load the AE weights, rather than searching in the ae_weights_dir for compatible weights.')
+    argument_parser.add_argument('--ae_save_final_weights', dest='ae_save_final_weights', type=lambda x: bool(strtobool(x)), default=True, help='Whether the final AE weights after pre-training should be saved.')
+
+    return argument_parser
 
 def expand_argument_parser_with_distributed_learning_parameters(argument_parser):
     argument_parser.add_argument('--nr_of_clients', type=int, required=True, help='The number of clients to use during training.')

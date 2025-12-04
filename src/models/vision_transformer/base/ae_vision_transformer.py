@@ -31,45 +31,7 @@ class AEVisionTransformer(nn.Module):
         x = x[InputModality.IMAGE]
         return self.vit(x)
 
-    def retrieve_split_layer_activations(self, x):
-        self.vit.eval()
 
-        x = x[InputModality.IMAGE]
-        x = x.to(self.device)
-        # 1. Patch Embedding Logic
-        n, c, h, w = x.shape
-        p = self.vit.patch_size
-        torch._assert(h == self.vit.image_size, f"Wrong image height! Expected {self.vit.image_size} but got {h}!")
-        torch._assert(w == self.vit.image_size, f"Wrong image width! Expected {self.vit.image_size} but got {w}!")
-        n_h = h // p
-        n_w = w // p
-
-        # (n, c, h, w) -> (n, hidden_dim, n_h, n_w)
-        x = self.vit.conv_proj(x)
-        # (n, hidden_dim, n_h, n_w) -> (n, hidden_dim, (n_h * n_w))
-        x = x.reshape(n, self.vit.hidden_dim, n_h * n_w)
-
-        # (n, hidden_dim, (n_h * n_w)) -> (n, (n_h * n_w), hidden_dim)
-        # The self attention layer expects inputs in the format (N, S, E)
-        # where S is the source sequence length, N is the batch size, E is the
-        # embedding dimension
-        x = x.permute(0, 2, 1)
-
-        # 2. Add Tokens & Position Embeddings
-        batch_class_token = self.vit.class_token.expand(n, -1, -1)
-        x = torch.cat([batch_class_token, x], dim=1)
-
-        torch._assert(x.dim() == 3, f"Expected (batch_size, seq_length, hidden_dim) got {x.shape}")
-
-        x = x + self.vit.pos_embedding
-        x = self.vit.dropout(x)
-
-        # 3. Forward Pass through Transformer Encoder up to split_layer
-        for i in range(self.split_layer):
-            x = self.vit.encoder.layers[i](x)
-
-
-        return x
 
     # def embedding_layer(self, x):
     #
