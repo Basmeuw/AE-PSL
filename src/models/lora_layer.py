@@ -15,10 +15,18 @@ class LoRALinear(nn.Module):
         self.out_features = original_layer.out_features
 
         # Freeze original weights
-        self.weight = nn.Parameter(original_layer.weight.clone().detach(), requires_grad=False)
-        self.bias = None
+        # self.weight = nn.Parameter(original_layer.weight.clone().detach(), requires_grad=False)
+        # self.bias = None
+        # if original_layer.bias is not None:
+        #     self.bias = nn.Parameter(original_layer.bias.clone().detach(), requires_grad=False)
+        # Optimized Code
+        self.weight = original_layer.weight
+        self.weight.requires_grad = False
+
+        # If original_layer had a bias
         if original_layer.bias is not None:
-            self.bias = nn.Parameter(original_layer.bias.clone().detach(), requires_grad=False)
+            self.bias = original_layer.bias
+            self.bias.requires_grad = False
 
         # Trainable LoRA params
         self.lora_b = nn.Parameter(torch.zeros(self.out_features, rank))

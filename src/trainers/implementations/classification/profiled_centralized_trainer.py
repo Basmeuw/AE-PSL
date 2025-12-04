@@ -7,6 +7,8 @@ from tqdm import tqdm
 from trainers.implementations.classification.centralized_trainer import CentralizedTrainer
 from trainers.implementations.experiment_results import ExperimentResults
 
+from src.models.meta_transformer.base.data2seq import InputModality
+
 
 class Profiler:
     """Helper class to manage CUDA timing events."""
@@ -106,6 +108,7 @@ class ProfiledTrainer(CentralizedTrainer):
                 optimizer.zero_grad()
 
             y = y.to(device)
+
             # Note: X transfer happens inside model(X)
 
             # --- 2. FORWARD PASS ---
@@ -133,11 +136,32 @@ class ProfiledTrainer(CentralizedTrainer):
             profiler.end("total_batch")
 
             # Optional: Stop early to save time, remove if you want full epoch stats
-            if batch_nr >= 100:
-                print("Stopping early for profiling report...")
-                break
+            # if batch_nr >= 100:
+            #     print("Stopping early for profiling report...")
+            #     break
 
         profiler.print_summary()
 
-        # Return dummy stats just to satisfy the interface
-        return f'Profiling complete.'
+        experiment_results.add_results(epoch_nr, acc, is_in_test_mode)
+
+        return f"no results, profiling only"
+
+    def train_epoch(self, **kwargs):
+        return self._perform_epoch(
+            experiment_results=kwargs['experiment_results'],
+            model=kwargs['model'],
+            device=kwargs['device'],
+            dataloader=kwargs['dataloader'],
+            epoch_nr=kwargs['epoch_nr'],
+            optimizer=kwargs['optimizer']
+        )
+
+    def test_epoch(self, **kwargs):
+        return self._perform_epoch(
+            experiment_results=kwargs['experiment_results'],
+            model=kwargs['model'],
+            device=kwargs['device'],
+            dataloader=kwargs['dataloader'],
+            epoch_nr=kwargs['epoch_nr'],
+            optimizer=None
+        )
