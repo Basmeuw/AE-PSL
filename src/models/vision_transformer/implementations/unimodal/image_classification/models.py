@@ -103,7 +103,8 @@ class ClientModel(nn.Module):
     def forward(self, x):
         # Most of this is directly from original ViT implementation
 
-
+        x = x[InputModality.IMAGE]
+        x = x.to(self.device)
 
         # 1. Patch Embedding Logic
         n, c, h, w = x.shape

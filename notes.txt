@@ -36,7 +36,8 @@ To-do:
 
 
 Structure of single full training:
-- get_ae_pretrainer
+- get_centralized_ae_pretrainer. We give this file the dataloader, initialized AE already
+-
 
 
 single main_2_stage file runs:
@@ -44,3 +45,13 @@ single main_2_stage file runs:
 - Each saved AE has a corresponding config file. This is used to load the AE with the correct params.
 - If AE needs to be pre-trained, call get_ae_pretrainer to get the AE pretrainer object.
 -
+
+
+
+main_centralized_2_stage.py: loads data, calls methods to pre-train AE, then calls methods to train the full model. Handles the two-stage training process.
+                    If additional steps have to be made, this may need to be delegated
+- get_centralized_ae_model_and_pretrainer:
+    - calls get_ae_model(global_args, use_pre_trained, model_path=None) to get the AE model. Based on parser args, it decides on a newly initialized AE or using an existing AE.
+        A file path needs to be passed as a parameter. This method also verifies that the AE is compatible.
+    - calls get_centralized_ae_pretrainer to get either a central AE pre-trainer or a client-side pre_trainer. This pre-trainer is passed as a function, which is then used in main
+
