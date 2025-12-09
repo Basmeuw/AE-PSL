@@ -115,7 +115,7 @@ def expand_argument_parser_with_ae_pretraining_parameters(argument_parser):
     argument_parser.add_argument('--ae_pretrain_scheduler_step_size', dest='ae_pretrain_scheduler_step_size', type=int, default=5)
     argument_parser.add_argument('--ae_pretrain_loss_fn', dest='ae_pretrain_loss_fn', type=str, default='mse', help='The loss function to use for AE pre-training.', choices=['mse', 'l1'])
 
-    argument_parser.add_argument('--ae_weights_dir', dest='ae_weights_dir', type=str, default='../../shared_data/model_checkpoints', help='The directory where to scan for existing pre_trained AE weights')
+    argument_parser.add_argument('--ae_weights_dir', dest='ae_weights_dir', type=str, default='../../data/ae_checkpoints', help='The directory where to scan for existing pre_trained AE weights')
     argument_parser.add_argument('--ae_specific_weights_path', dest='ae_specific_weights_path', type=str, default=None, help='If specified, this AE weights path will be used to load the AE weights, rather than searching in the ae_weights_dir for compatible weights.')
     argument_parser.add_argument('--ae_save_final_weights', dest='ae_save_final_weights', type=lambda x: bool(strtobool(x)), default=True, help='Whether the final AE weights after pre-training should be saved.')
 
