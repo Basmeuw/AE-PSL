@@ -102,7 +102,7 @@ def save_experiment_results(experiment_results: ExperimentResults, desired_file_
     if desired_file_name is None:
         raise Exception('desired_file_name was None: cannot save results dict')
     else:
-        full_file_path = os.path.join(os.environ['MODEL_WEIGHTS_DIR'], desired_file_name + '.json')
+        full_file_path = os.path.join(os.environ["MODEL_WEIGHTS_DIR"], desired_file_name + '.json')
 
         save_object_to_json(experiment_results.to_json(), full_file_path)
 

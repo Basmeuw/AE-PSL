@@ -8,12 +8,12 @@ from models.auto_encoder import AE_REGISTRY
 from models.meta_transformer.base.meta_transformer import trainable_params_options
 
 def set_env_variables(arguments):
-    os.environ['TORCH_DATA_DIR'] = arguments.torch_data_dir
-    os.environ['PRE_PROCESSORS_CACHE_DIR'] = arguments.pre_processors_cache_dir
-    os.environ['TOKENIZER_WEIGHTS_CACHE_DIR'] = arguments.tokenizer_weights_cache_dir
-    os.environ['MODEL_WEIGHTS_DIR'] = arguments.model_weights_dir
-    os.environ['AE_WEIGHTS_DIR'] = arguments.ae_weights_dir
-    os.environ['VIT_BASE'] = arguments.vit_base
+    os.environ['TORCH_DATA_DIR'] = arguments['torch_data_dir']
+    os.environ['PRE_PROCESSORS_CACHE_DIR'] = arguments['pre_processors_cache_dir']
+    os.environ['TOKENIZER_WEIGHTS_CACHE_DIR'] = arguments['tokenizer_weights_cache_dir']
+    os.environ['MODEL_WEIGHTS_DIR'] = arguments['model_weights_dir']
+    os.environ['AE_WEIGHTS_DIR'] = arguments['ae_weights_dir']
+    os.environ['VIT_BASE'] = arguments['vit_base']
 
 
 def build_base_argument_parser():
