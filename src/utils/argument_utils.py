@@ -126,3 +126,10 @@ def expand_argument_parser_with_distributed_learning_parameters(argument_parser)
     argument_parser.add_argument('--dataset_split_type', type=str, required=True, choices=['iid', 'noniid'], help='The type of data distribution that should be used for splitting the original dataset into all separate client-side datasets.')
 
     return argument_parser
+
+
+def namespace_to_dict(namespace):
+    """
+    Converts an argparse.Namespace object to a dictionary.
+    """
+    return {key: value for key, value in vars(namespace).items()}

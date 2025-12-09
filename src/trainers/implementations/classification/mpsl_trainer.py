@@ -18,7 +18,7 @@ class MPSLTrainer(ExperimentTrainer):
         self.modalities = modalities
 
     def _early_fusion_epoch(self, device, server_model, server_optimizer, client_data_iterators: dict, client_models: dict, client_model_requires_any_grad, client_optimizers: dict, max_nr_of_batches_in_epoch, global_args):
-        client_ids = range(global_args.nr_of_clients)
+        client_ids = range(global_args['nr_of_clients'])
         total_server_loss, acc = 0, 0
         client_specific_acc_tuples, nr_of_elements_per_client = {_client_id: (0, 0) for _client_id in client_ids}, {_client_id: 0 for _client_id in client_ids}
 
@@ -36,7 +36,7 @@ class MPSLTrainer(ExperimentTrainer):
             # The indices that correspond to each client's mini-batch, given that the full batch is the concatenation of all mini-batches together
             mini_batch_indices, y_per_client = dict(), dict()
 
-            for client_id in range(global_args.nr_of_clients):
+            for client_id in range(global_args['nr_of_clients']):
                 try:
                     X, y = next(client_data_iterators[client_id])
 
@@ -76,7 +76,7 @@ class MPSLTrainer(ExperimentTrainer):
             final_activations = intermediate_activations_entire_batch_combined.detach().clone().requires_grad_(True)
             predictions = server_model(final_activations)
 
-            for client_id in range(global_args.nr_of_clients):
+            for client_id in range(global_args['nr_of_clients']):
                 if client_id not in mini_batch_indices:
                     continue
 
@@ -118,7 +118,7 @@ class MPSLTrainer(ExperimentTrainer):
             # We should only compute gradients and perform client-side BP if client-side models actually require gradients.
             if client_model_requires_any_grad:
                 # Server-side 'sending' gradients & client-side performing BP
-                for client_id in range(global_args.nr_of_clients):
+                for client_id in range(global_args['nr_of_clients']):
                     if client_id in mini_batch_indices:
                         (client_begin_index, client_end_index) = mini_batch_indices[client_id]
                         cut_layer_grads = final_activations.grad[client_begin_index:client_end_index].clone()
@@ -141,7 +141,7 @@ class MPSLTrainer(ExperimentTrainer):
             nr_of_elements_per_client
 
     def _late_fusion_epoch(self, device, server_model, server_optimizer, client_data_iterators: dict, client_models: dict, client_model_requires_any_grad, client_optimizers: dict, max_nr_of_batches_in_epoch, global_args):
-        client_ids = range(global_args.nr_of_clients)
+        client_ids = range(global_args['nr_of_clients'])
         total_server_loss, acc = 0, 0
         client_specific_acc_tuples, nr_of_elements_per_client = {_client_id: (0, 0) for _client_id in client_ids}, {_client_id: 0 for _client_id in client_ids}
 
@@ -161,7 +161,7 @@ class MPSLTrainer(ExperimentTrainer):
             # The indices that correspond to each client's mini-batch, given that the full batch is the concatenation of all mini-batches together
             mini_batch_indices, y_per_client = dict(), dict()
 
-            for client_id in range(global_args.nr_of_clients):
+            for client_id in range(global_args['nr_of_clients']):
                 try:
                     X, y = next(client_data_iterators[client_id])
 
@@ -205,7 +205,7 @@ class MPSLTrainer(ExperimentTrainer):
             final_activations_dict_for_modality = {modality: intermediate_activations_entire_batch_combined_for_modality[modality].detach().clone().requires_grad_(True) for modality in self.modalities}
             predictions = server_model(final_activations_dict_for_modality)
 
-            for client_id in range(global_args.nr_of_clients):
+            for client_id in range(global_args['nr_of_clients']):
                 if client_id not in mini_batch_indices:
                     continue
 
@@ -250,7 +250,7 @@ class MPSLTrainer(ExperimentTrainer):
                     is_last_modality = idx == len(self.modalities) - 1
 
                     # Server-side 'sending' gradients & client-side performing BP
-                    for client_id in range(global_args.nr_of_clients):
+                    for client_id in range(global_args['nr_of_clients']):
                         if client_id in mini_batch_indices:
                             (client_begin_index, client_end_index) = mini_batch_indices[client_id]
                             final_activations = final_activations_dict_for_modality[modality]
@@ -321,7 +321,7 @@ class MPSLTrainer(ExperimentTrainer):
                     global_args)
 
         total_server_loss /= max_nr_of_batches_in_epoch
-        acc = ((acc / max_nr_of_batches_in_epoch) / global_args.nr_of_clients)
+        acc = ((acc / max_nr_of_batches_in_epoch) / global_args['nr_of_clients'])
 
         experiment_results.add_results(epoch_nr, acc, False)
 
@@ -329,7 +329,7 @@ class MPSLTrainer(ExperimentTrainer):
 
         total_client_outgoing_communication_size, total_client_incoming_communication_size = 0, 0
 
-        for client_id in range(global_args.nr_of_clients):
+        for client_id in range(global_args['nr_of_clients']):
             client_specific_total_acc, client_specific_total_batch_size = client_specific_acc_tuples[client_id]
 
             # = Communication tracking =
@@ -343,8 +343,8 @@ class MPSLTrainer(ExperimentTrainer):
                 client_schedulers[client_id].step()
 
         # = Communication tracking =
-        avg_incoming_comms_overhead_in_mb = bytes_to_megabytes(total_client_incoming_communication_size / global_args.nr_of_clients)
-        avg_outgoing_comms_overhead_in_mb = bytes_to_megabytes(total_client_outgoing_communication_size / global_args.nr_of_clients)
+        avg_incoming_comms_overhead_in_mb = bytes_to_megabytes(total_client_incoming_communication_size / global_args['nr_of_clients'])
+        avg_outgoing_comms_overhead_in_mb = bytes_to_megabytes(total_client_outgoing_communication_size / global_args['nr_of_clients'])
         print(f'Average client communication overhead: incoming {avg_incoming_comms_overhead_in_mb} MB & outgoing {avg_outgoing_comms_overhead_in_mb} MB')
         experiment_results.set_client_communication_overhead(avg_incoming_comms_overhead_in_mb, avg_outgoing_comms_overhead_in_mb)
 

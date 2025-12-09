@@ -64,3 +64,6 @@ need 3 steps:
 
 
 Currently, we do not use validation loss to save the best model!. See if early stopping is necessary.
+
+TODO:
+- Need to fix that the activation to train the AE are not recalculated each epoch.

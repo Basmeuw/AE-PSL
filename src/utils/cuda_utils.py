@@ -31,7 +31,7 @@ def get_free_gpu_indices():
 
 
 def get_free_cuda_device_name(global_args):
-    chosen_gpu_id = global_args.gpu_id
+    chosen_gpu_id = global_args['gpu_id']
 
     if chosen_gpu_id is not None:
         return f'cuda:{chosen_gpu_id}'

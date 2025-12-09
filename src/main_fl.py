@@ -10,7 +10,7 @@ import models
 from trainers.implementations.experiment_results import ExperimentResults
 from utils.argument_utils import validate_base_argument_constraints, build_base_argument_parser, \
     expand_argument_parser_with_adapter_approach_parameters, \
-    expand_argument_parser_with_distributed_learning_parameters, set_env_variables
+    expand_argument_parser_with_distributed_learning_parameters, set_env_variables, namespace_to_dict
 from utils.config_utils import set_random_seed
 from utils.cuda_utils import get_free_cuda_device_name
 from utils.fl_utils import fed_avg, synchronize_models_in_place, get_client_weight_multipliers__nr_of_elements, \
@@ -65,7 +65,7 @@ def perform_model_aggregation_and_synchronization_in_place(_aggregated_model, _c
     return _aggregated_model
 
 
-def setup_arguments() -> Namespace:
+def setup_arguments() -> dict:
     parser = build_base_argument_parser()
     parser = expand_argument_parser_with_adapter_approach_parameters(parser)
     parser = expand_argument_parser_with_distributed_learning_parameters(parser)
@@ -82,29 +82,29 @@ def setup_arguments() -> Namespace:
     validate_base_argument_constraints(args)
     set_env_variables(args)
 
-    return args
+    return namespace_to_dict(args)
 
 
 if __name__ == '__main__':
     global_args = setup_arguments()
     print(global_args)
 
-    set_random_seed(global_args.random_seed)
+    set_random_seed(global_args['random_seed'])
 
     # # # # # # # # # # # # # # # # # Setup # # # # # # # # # # # # # # # # #
     device = torch.device(get_free_cuda_device_name(global_args) if torch.cuda.is_available() else "cpu")
-    mini_batch_size = compute_mini_batch_size(global_args.batch_size, global_args.nr_of_clients)
-    total_batch_size = global_args.nr_of_clients * mini_batch_size
+    mini_batch_size = compute_mini_batch_size(global_args['batch_size'], global_args['nr_of_clients'])
+    total_batch_size = global_args['nr_of_clients'] * mini_batch_size
 
     print(f'Device: {device}')
-    print(f'Available datasets: {datasets.available_datasets()}, chosen: {global_args.dataset} with batch_size: {global_args.batch_size} and mini-batch size: {mini_batch_size}. Hence real total batch_size is {total_batch_size}')
+    print(f'Available datasets: {datasets.available_datasets()}, chosen: {global_args["dataset"]} with batch_size: {global_args["batch_size"]} and mini-batch size: {mini_batch_size}. Hence real total batch_size is {total_batch_size}')
 
-    if total_batch_size > global_args.batch_size:
-        raise Exception(f'total_batch_size > chosen batch_size ({total_batch_size} > {global_args.batch_size})')
+    if total_batch_size > global_args['batch_size']:
+        raise Exception(f'total_batch_size > chosen batch_size ({total_batch_size} > {global_args["batch_size"]})')
 
-    full_dataset = datasets.load_data(name=global_args.dataset, num_partitions=global_args.nr_of_clients, split=global_args.dataset_split_type, seed=global_args.random_seed, global_args=global_args)
+    full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=global_args['nr_of_clients'], split=global_args['dataset_split_type'], seed=global_args['random_seed'], global_args=global_args)
     test_ds = full_dataset.load_test_set()
-    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args.batch_size, shuffle=False, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn(), drop_last=False)
+    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args['batch_size'], shuffle=False, pin_memory=True, num_workers=global_args['num_workers'], collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
     aggregated_model, trainer = models.get_federated_model_and_trainer(global_args, device)
 
@@ -116,9 +116,9 @@ if __name__ == '__main__':
     client_optimizers = dict()
     client_schedulers = dict()
 
-    for client_id in range(global_args.nr_of_clients):
+    for client_id in range(global_args['nr_of_clients']):
         client_train_data = full_dataset.load_partition(partition_id=client_id)
-        client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn(), drop_last=False)
+        client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True, pin_memory=True, num_workers=global_args['num_workers'], collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
         client_data_loaders[client_id] = client_train_dataloader
 
@@ -133,23 +133,23 @@ if __name__ == '__main__':
     experiment_results = ExperimentResults()
 
     # # # # # # # # # # # # # # # # # Training # # # # # # # # # # # # # # # # #
-    for epoch_nr in range(global_args.nr_of_epochs):
+    for epoch_nr in range(global_args['nr_of_epochs']):
         print(f'Starting epoch {epoch_nr + 1}')
 
         train_results_as_string, nr_of_elements_per_client_dict = handle_train_epoch(
-            trainer, experiment_results, device, client_data_loaders, client_models, epoch_nr + 1, global_args.nr_of_clients, client_optimizers, client_schedulers
+            trainer, experiment_results, device, client_data_loaders, client_models, epoch_nr + 1, global_args['nr_of_clients'], client_optimizers, client_schedulers
         )
         print(train_results_as_string)
 
         aggregated_model = perform_model_aggregation_and_synchronization_in_place(aggregated_model, client_models, get_client_weight_multipliers__nr_of_elements(nr_of_elements_per_client_dict))
 
-        if global_args.save_model_after_each_epoch:
-            save_federated_model(aggregated_model, client_models, global_args.save_file_name)
+        if global_args['save_model_after_each_epoch']:
+            save_federated_model(aggregated_model, client_models, global_args['save_file_name'])
 
         models_to_evaluate = dict()
         models_to_evaluate[AGGREGATED_MODEL_NAME] = aggregated_model
 
-        if not global_args.validate_only_aggregated_model:
+        if not global_args['validate_only_aggregated_model']:
             for client_id in client_models.keys():
                 models_to_evaluate[client_id] = client_models[client_id]
 
@@ -163,14 +163,14 @@ if __name__ == '__main__':
         )
         print(test_results_as_string)
 
-        save_experiment_results(experiment_results, global_args.save_file_name)
+        save_experiment_results(experiment_results, global_args['save_file_name'])
 
     print(f'Finished training - saving final model')
 
-    if global_args.save_final_model:
-        if global_args.validate_only_aggregated_model:
+    if global_args['save_final_model']:
+        if global_args['validate_only_aggregated_model']:
             # If we only validate the aggregated model, we'll also only save the aggregated model, instead of all additional client models.
             # We can enforce this by sending an empty dict as the client_models dict
             client_models = dict()
 
-        save_federated_model(aggregated_model, client_models, global_args.save_file_name)
+        save_federated_model(aggregated_model, client_models, global_args['save_file_name'])

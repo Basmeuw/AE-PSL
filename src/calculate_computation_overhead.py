@@ -184,7 +184,7 @@ def embed_text_for_image_text_retrieval(model, text):
 
 
 def build_model_wrapper(global_args):
-    dataset = global_args.dataset
+    dataset = global_args['dataset']
 
     # Note that we're solely evaluating the centralized version of each model implementation, as we can deduce the number of
     # parameters and GFlops for the Split Learning counterpart from the result as well, by reasoning about what layers are present on the client-side and server-side.
@@ -194,83 +194,83 @@ def build_model_wrapper(global_args):
         else:
             from available_datasets.multimodal.sentiment_analysis.t4sa import NR_OF_CLASSES
 
-        if global_args.use_adapter_approach:
+        if global_args['use_adapter_approach']:
             return VQAWrapperWithAdapter(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.trainable_params_key,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['trainable_params_key'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device,
-                global_args.fusion_type,
-                global_args.include_image_adapter,
-                global_args.include_text_adapter,
-                global_args.include_unified_adapter
+                global_args['fusion_type'],
+                global_args['include_image_adapter'],
+                global_args['include_text_adapter'],
+                global_args['include_unified_adapter']
             ), InputModality.IMAGE
         else:
             return VQAWrapper(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.freeze_encoder,
-                global_args.nr_of_last_encoder_blocks_to_finetune,
-                global_args.trainable_params_key,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['freeze_encoder'],
+                global_args['nr_of_last_encoder_blocks_to_finetune'],
+                global_args['trainable_params_key'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device,
-                global_args.fusion_type,
+                global_args['fusion_type'],
                 NR_OF_CLASSES
             ), InputModality.IMAGE
     elif dataset == 'meld':
         from available_datasets.multimodal.emotion_recognition.meld import NR_OF_CLASSES
 
-        if global_args.use_adapter_approach:
+        if global_args['use_adapter_approach']:
             return MELDWrapperWithAdapter(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.trainable_params_key,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['trainable_params_key'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device,
-                global_args.fusion_type,
-                global_args.audio_time_dimension,
+                global_args['fusion_type'],
+                global_args['audio_time_dimension'],
                 NR_OF_CLASSES,
-                global_args.include_text_adapter,
-                global_args.include_audio_adapter,
-                global_args.include_unified_adapter
+                global_args['include_text_adapter'],
+                global_args['include_audio_adapter'],
+                global_args['include_unified_adapter']
             ), InputModality.AUDIO
         else:
             return MELDWrapper(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.freeze_encoder,
-                global_args.nr_of_last_encoder_blocks_to_finetune,
-                global_args.trainable_params_key,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['freeze_encoder'],
+                global_args['nr_of_last_encoder_blocks_to_finetune'],
+                global_args['trainable_params_key'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device,
-                global_args.fusion_type,
-                global_args.audio_time_dimension,
+                global_args['fusion_type'],
+                global_args['audio_time_dimension'],
                 NR_OF_CLASSES
             ), InputModality.AUDIO
     elif dataset == 'flickr30k' or dataset == 'coco-retrieval':
-        if global_args.use_adapter_approach:
+        if global_args['use_adapter_approach']:
             return ImageTextRetrievalWrapperWithAdapter(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device,
                 global_args
             ), InputModality.IMAGE
         else:
             return ImageTextRetrievalWrapper(
-                global_args.use_pre_layer_norm,
-                global_args.use_post_layer_norm,
-                global_args.use_large_encoder,
-                global_args.freeze_encoder,
-                global_args.nr_of_last_encoder_blocks_to_finetune,
-                global_args.trainable_params_key,
-                global_args.use_clip_encoder_for_text_embeddings,
+                global_args['use_pre_layer_norm'],
+                global_args['use_post_layer_norm'],
+                global_args['use_large_encoder'],
+                global_args['freeze_encoder'],
+                global_args['nr_of_last_encoder_blocks_to_finetune'],
+                global_args['trainable_params_key'],
+                global_args['use_clip_encoder_for_text_embeddings'],
                 device
             ), InputModality.IMAGE
     return None
@@ -278,25 +278,25 @@ def build_model_wrapper(global_args):
 
 if __name__ == '__main__':
     global_args = setup_arguments()
-    global_args.batch_size = 1
+    global_args['batch_size'] = 1
 
     print(global_args)
 
-    set_random_seed(global_args.random_seed)
+    set_random_seed(global_args['random_seed'])
 
     device = torch.device(get_free_cuda_device_name(global_args) if torch.cuda.is_available() else "cpu")
     print(f'Device: {device}')
 
-    full_dataset = datasets.load_data(name=global_args.dataset, num_partitions=1, split='noniid', seed=global_args.random_seed, global_args=global_args)
-    train_dataloader = datasets.DataLoader(full_dataset.load_partition(partition_id=0), batch_size=global_args.batch_size, shuffle=True, pin_memory=True, num_workers=global_args.num_workers, collate_fn=full_dataset.get_collate_fn())
+    full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=1, split='noniid', seed=global_args['random_seed'], global_args=global_args)
+    train_dataloader = datasets.DataLoader(full_dataset.load_partition(partition_id=0), batch_size=global_args['batch_size'], shuffle=True, pin_memory=True, num_workers=global_args['num_workers'], collate_fn=full_dataset.get_collate_fn())
 
-    if should_override_text_tokenization(global_args.dataset):
+    if should_override_text_tokenization(global_args['dataset']):
         # Any model implementation that uses the text modality should exclude the tokenization of text embeddings in the model itself because fvcore seems to have issues with this in particular.
         # Providing the model with text embeddings in forms of tensors instead, works.
         model, second_modality = build_model_wrapper(global_args)
         model = model.switch_to_device(device)
 
-        is_image_text_retrieval_task = global_args.dataset in ['flickr30k', 'coco-retrieval']
+        is_image_text_retrieval_task = global_args['dataset'] in ['flickr30k', 'coco-retrieval']
 
         if is_image_text_retrieval_task:
             batch = next(iter(train_dataloader))

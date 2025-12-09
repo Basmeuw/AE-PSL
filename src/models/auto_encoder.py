@@ -21,7 +21,7 @@ def get_AE_type(class_name):
 
 # function that calls from outside
 def initialize_AE(global_args, input_dim):
-    ae_type = global_args.ae_type
+    ae_type = global_args['ae_type']
     if ae_type not in AE_REGISTRY:
         raise ValueError(f"Unknown AE type '{ae_type}'. "
                          f"Available: {list(AE_REGISTRY.keys())}")
@@ -29,7 +29,7 @@ def initialize_AE(global_args, input_dim):
     if ae_type == 'identity':
         return AE_REGISTRY[ae_type]()
     elif ae_type == 'linear':
-        return AE_REGISTRY[ae_type](input_dim=input_dim, latent_dim=global_args.ae_latent_dim)
+        return AE_REGISTRY[ae_type](input_dim=input_dim, latent_dim=global_args['ae_latent_dim'])
 
 
 
