@@ -180,7 +180,7 @@ def run_orchestrator():
         try:
             # Execute the training stage directly
             # This handles AE pre-training/loading internally
-            run_2_stage(current_run_args)
+            run_2_stage(current_run_args, job_params)
 
         except KeyboardInterrupt:
             print("\nOrchestrator interrupted by user.")

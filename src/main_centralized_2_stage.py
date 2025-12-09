@@ -57,7 +57,7 @@ def setup_arguments() -> dict:
     return namespace_to_dict(args)
 
 
-def run_2_stage(global_args: dict):
+def run_2_stage(global_args: dict, search_space_args: dict):
     set_random_seed(global_args['random_seed'])
 
     # # # # # # # # # # # # # # # # # Setup # # # # # # # # # # # # # # # # #
@@ -177,6 +177,8 @@ def run_2_stage(global_args: dict):
 
     # A utility object that can be used to streamline archiving experiment results.
     experiment_results = ExperimentResults()
+    # Make sure to save any specific hyperparameters used for this experiment
+    experiment_results.params = search_space_args
 
     # # # # # # # # # # # # # # # # # Stage 2 Training # # # # # # # # # # # # # # # # #
     for epoch_nr in range(global_args['nr_of_epochs']):
@@ -208,7 +210,7 @@ def run_2_stage(global_args: dict):
 
 if __name__ == '__main__':
     # print(global_args)
-    run_2_stage(setup_arguments())
+    run_2_stage(setup_arguments(), None)
 
 
 

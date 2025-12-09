@@ -7,6 +7,7 @@ class ExperimentResults:
     test_metric: List = []
     incoming_client_communication_overhead_in_mb: int = -1
     outgoing_client_communication_overhead_in_mb: int = -1
+    params: dict = {}
 
     def add_results(self, epoch_nr, metric, is_in_test_mode):
         if epoch_nr not in self.epochs:
