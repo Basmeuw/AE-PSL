@@ -67,3 +67,9 @@ Currently, we do not use validation loss to save the best model!. See if early s
 
 TODO:
 - Need to fix that the activation to train the AE are not recalculated each epoch.
+- Need to implement the MPSL training method
+- Need to fix AE training, seems like results are suboptimal.
+- Need to implement plotting / results gathering code.
+- Add option to only pre-train AEs
+
+- Add more datasets.

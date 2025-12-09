@@ -157,10 +157,9 @@ def run_2_stage(global_args: dict, search_space_args: dict):
             if global_args['ae_save_final_weights']:
                 save_ae_with_signature(auto_encoder_model, ae_signature)
 
-    skip_stage_2 = False
-    if skip_stage_2:
+    if global_args['ae_pretrain_only']:
         print("Skipping stage 2 as per user request.")
-        exit(0)
+        return
 
     # Using the base model and the AE, load the full centralized model and the trainer
     full_model, trainer = get_centralized_model_and_trainer(global_args, device, base_model=base_model,
