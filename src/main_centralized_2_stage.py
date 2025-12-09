@@ -207,9 +207,8 @@ def run_2_stage(global_args: dict):
 
 
 if __name__ == '__main__':
-    global_args = setup_arguments()
     # print(global_args)
-    run_2_stage(global_args)
+    run_2_stage(setup_arguments())
 
 
 

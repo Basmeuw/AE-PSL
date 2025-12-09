@@ -46,7 +46,7 @@ class SupportedModel(Enum):
 
 # ========= BASE MODEL SELECTION ========= #
 
-def get_base_model(global_args: Namespace, device: torch.device) -> Any:
+def get_base_model(global_args: dict, device: torch.device) -> Any:
     model = SupportedModel[global_args['model'].upper()]
 
     if model is SupportedModel.META_TRANSFORMER:
@@ -58,7 +58,7 @@ def get_base_model(global_args: Namespace, device: torch.device) -> Any:
         raise NotImplementedError(f'Chosen model {global_args["model"]} is currently not supported.')
 
 
-def get_base_model_vit(global_args: Namespace, device: torch.device):
+def get_base_model_vit(global_args: dict, device: torch.device):
     dataset = global_args['dataset']
 
     if dataset == 'cifar100':
@@ -78,7 +78,7 @@ def get_base_model_vit(global_args: Namespace, device: torch.device):
 
 # TODO this code might get messy with more models
 # If there will ever be more models, need to create a base class for all base models
-def get_centralized_model_and_trainer(global_args: Namespace, device: torch.device, base_model=None,
+def get_centralized_model_and_trainer(global_args: dict, device: torch.device, base_model=None,
                                       auto_encoder: IdentityAE = None) -> (Any, ExperimentTrainer):
     model = SupportedModel[global_args['model'].upper()]
 
@@ -94,7 +94,7 @@ def get_centralized_model_and_trainer(global_args: Namespace, device: torch.devi
         raise NotImplementedError(f'Chosen model {global_args["model"]} is currently not supported.')
 
 
-def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.device, base_model=None, auto_encoder: IdentityAE = None) -> (
+def get_split_model_pair_and_trainer(global_args: dict, device: torch.device, base_model=None, auto_encoder: IdentityAE = None) -> (
         Any, ExperimentTrainer):
     if global_args['model'].upper() not in SupportedModel.__members__.keys():
         raise NotImplementedError('Chosen model is currently not supported.')
@@ -113,7 +113,7 @@ def get_split_model_pair_and_trainer(global_args: Namespace, device: torch.devic
 
 
 # Choose between models
-def get_federated_model_and_trainer(global_args: Namespace, device: torch.device, auto_encoder: IdentityAE = None) -> (
+def get_federated_model_and_trainer(global_args: dict, device: torch.device, auto_encoder: IdentityAE = None) -> (
         Any, ExperimentTrainer):
     if global_args['model'].upper() not in SupportedModel.__members__.keys():
         raise NotImplementedError('Chosen model is currently not supported.')
@@ -132,7 +132,7 @@ def get_federated_model_and_trainer(global_args: Namespace, device: torch.device
 
 
 
-def get_centralized_model_and_trainer_vit(global_args: Namespace, base_model: VisionTransformerBase,
+def get_centralized_model_and_trainer_vit(global_args: dict, base_model: VisionTransformerBase,
                                           auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
     dataset = global_args['dataset']
     if dataset == 'cifar100':
@@ -149,7 +149,7 @@ def get_centralized_model_and_trainer_vit(global_args: Namespace, base_model: Vi
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 
 
-def get_split_model_and_trainer_vit(global_args: Namespace, base_model: VisionTransformerBase, auto_encoder: IdentityAE, device: torch.device) -> (Any,
+def get_split_model_and_trainer_vit(global_args: dict, base_model: VisionTransformerBase, auto_encoder: IdentityAE, device: torch.device) -> (Any,
                                                                                                                 ExperimentTrainer):
     dataset = global_args['dataset']
     if dataset == 'cifar100':
@@ -169,7 +169,7 @@ def get_split_model_and_trainer_vit(global_args: Namespace, base_model: VisionTr
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 
 
-def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (Any,
+def get_federated_model_and_trainer_meta_transformer(global_args: dict, device: torch.device) -> (Any,
                                                                                                        ExperimentTrainer):
     dataset = global_args['dataset']
 
@@ -325,7 +325,7 @@ def get_federated_model_and_trainer_meta_transformer(global_args: Namespace, dev
         raise NotImplementedError('Chosen model\'s dataset implementation is currently not supported.')
 
 
-def get_split_model_pair_and_trainer_meta_transformer(global_args: Namespace, device: torch.device) -> (
+def get_split_model_pair_and_trainer_meta_transformer(global_args: dict, device: torch.device) -> (
         (Any, Any, bool), ExperimentTrainer):
     dataset = global_args['dataset']
 
