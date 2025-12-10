@@ -72,7 +72,6 @@ TODO:
 
 - Need to implement plotting / results gathering code.
 - Check why 'Files downloaded and verified' appears multiple times during data loading.
-- incoming and outgoing data isn't correct for smaller latent dimensions.
 - Add more datasets.
 - Need to adapt results to per-client structure
 - Give the pretrained AEs unique names

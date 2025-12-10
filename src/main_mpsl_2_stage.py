@@ -17,7 +17,7 @@ from utils.argument_utils import build_base_argument_parser, \
     expand_argument_parser_with_distributed_learning_parameters, validate_base_argument_constraints, set_env_variables, \
     namespace_to_dict
 from utils.config_utils import set_random_seed
-from utils.cuda_utils import get_free_cuda_device_name
+from utils.cuda_utils import get_free_cuda_device_name, get_device
 from utils.fl_utils import fed_avg, get_client_weight_multipliers__nr_of_elements
 from utils.model_saving_utils import save_split_model, save_experiment_results
 from utils.mpsl_utils import compute_mini_batch_size
@@ -103,7 +103,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
     set_random_seed(global_args['random_seed'])
 
     # # # # # # # # # # # # # # # # # Setup # # # # # # # # # # # # # # # # #
-    device = torch.device(get_free_cuda_device_name(global_args) if torch.cuda.is_available() else "cpu")
+    device = get_device(global_args)
     mini_batch_size = compute_mini_batch_size(global_args['batch_size'], global_args['nr_of_clients'])
     total_batch_size = global_args['nr_of_clients'] * mini_batch_size
 

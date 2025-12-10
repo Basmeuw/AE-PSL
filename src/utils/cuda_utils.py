@@ -3,6 +3,8 @@ import os
 import subprocess
 import sys
 
+import torch
+
 
 def run_cmd(cmd):
     out = (subprocess.check_output(cmd, shell=True)).decode('utf-8')[:-1]
@@ -51,3 +53,13 @@ def get_free_cuda_device_name(global_args):
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_idx)
 
     return f'cuda:{gpu_idx}'
+
+
+def get_device(global_args):
+    if not torch.cuda.is_available():
+        if global_args['gpu_id'] == "mps":
+            return torch.device("mps")
+        else:
+            return torch.device("cpu")
+    else:
+        get_free_cuda_device_name(global_args)

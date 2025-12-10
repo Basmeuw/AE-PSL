@@ -18,7 +18,7 @@ from utils.argument_utils import build_base_argument_parser, validate_base_argum
     expand_argument_parser_with_adapter_approach_parameters, set_env_variables, \
     expand_argument_parser_with_ae_pretraining_parameters, namespace_to_dict
 from utils.config_utils import set_random_seed
-from utils.cuda_utils import get_free_cuda_device_name
+from utils.cuda_utils import get_free_cuda_device_name, get_device
 from utils.model_saving_utils import save_centralized_model, \
     save_experiment_results, save_ae_experiment_results
 from utils.scheduler_utils import get_optimizer_and_scheduler, get_ae_pretrain_optimizer_and_scheduler
@@ -62,7 +62,7 @@ def run_2_stage(global_args: dict, search_space_args: dict):
     set_random_seed(global_args['random_seed'])
 
     # # # # # # # # # # # # # # # # # Setup # # # # # # # # # # # # # # # # #
-    device = torch.device(get_free_cuda_device_name(global_args) if torch.cuda.is_available() else "cpu")
+    device = get_device(global_args)
     print(f'Device: {device}')
 
     full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=1, split='iid',
