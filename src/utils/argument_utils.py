@@ -25,7 +25,7 @@ def set_env_variables(arguments):
     os.environ['PRE_PROCESSORS_CACHE_DIR'] = arguments.pre_processors_cache_dir
     os.environ['TOKENIZER_WEIGHTS_CACHE_DIR'] = arguments.tokenizer_weights_cache_dir
     os.environ['MODEL_WEIGHTS_DIR'] = arguments.model_weights_dir
-    os.environ['AE_WEIGHTS_DIR'] = arguments.ae_weights_dir
+    os.environ['AE_WEIGHTS_DIR'] = arguments.ae_weights_dir if hasattr(arguments, 'ae_weights_dir') else ''
     os.environ['VIT_BASE'] = arguments.vit_base
 
 
@@ -125,8 +125,8 @@ def expand_argument_parser_with_ae_pretraining_parameters(argument_parser):
     return argument_parser
 
 def expand_argument_parser_with_distributed_learning_parameters(argument_parser):
-    argument_parser.add_argument('--nr_of_clients', type=int, required=True, help='The number of clients to use during training.')
-    argument_parser.add_argument('--dataset_split_type', type=str, required=True, choices=['iid', 'noniid'], help='The type of data distribution that should be used for splitting the original dataset into all separate client-side datasets.')
+    argument_parser.add_argument('--nr_of_clients', type=int, required=False, default=5, help='The number of clients to use during training.')
+    argument_parser.add_argument('--dataset_split_type', type=str, required=False, default='nonidd', choices=['iid', 'noniid'], help='The type of data distribution that should be used for splitting the original dataset into all separate client-side datasets.')
 
     return argument_parser
 

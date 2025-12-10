@@ -12,9 +12,9 @@ from torch.utils.data import DataLoader, Subset
 from available_datasets import CIFAR100
 from models.auto_encoder import IdentityAE
 from models.meta_transformer.base.data2seq import InputModality
-from src.models.misc.wrapper_model import WrapperModel
-from src.models.vision_transformer.base.ae_vision_transformer import AEVisionTransformer
-from src.utils.mpsl_utils import client_model_requires_any_grad
+from models.misc.wrapper_model import WrapperModel
+from models.vision_transformer.base.ae_vision_transformer import AEVisionTransformer
+from utils.mpsl_utils import client_model_requires_any_grad
 
 # --- Setup Environment & SSL ---
 # Setting temporary paths for the test execution
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     # Init model with LoRA enabled
     ae = IdentityAE()  # Example AE
 
-    from src.models.vision_transformer.implementations.unimodal.image_classification.models import get_centralized_model as get_centralized_model_vit
+    from models.vision_transformer.implementations.unimodal.image_classification.models import get_centralized_model as get_centralized_model_vit
     model_lora = get_centralized_model_vit(auto_encoder=ae, split_layer=3, use_lora=True, lora_rank=4, lora_alpha=4, num_classes=100, device=device)
 
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     # Init model with LoRA enabled
     ae = IdentityAE()  # Example AE
 
-    from src.models.vision_transformer.implementations.unimodal.image_classification.models import \
+    from models.vision_transformer.implementations.unimodal.image_classification.models import \
         get_split_model as get_split_model_vit
 
     client_model, server_model, client_model_requires_grad = get_split_model_vit(auto_encoder=ae, split_layer=3, use_lora=True, lora_rank=4, lora_alpha=4,

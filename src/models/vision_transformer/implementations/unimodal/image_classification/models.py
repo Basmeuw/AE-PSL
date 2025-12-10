@@ -9,9 +9,8 @@ from models.vision_transformer.base.ae_vision_transformer import AEVisionTransfo
 from models.meta_transformer.base.data2seq import InputModality
 from utils.mpsl_utils import client_model_requires_any_grad
 
-from src.models import VisionTransformerBase
+from models import VisionTransformerBase
 
-centralized_base_model = None
 
 def get_base_model_vit(vit_type: str, use_lora: bool, lora_rank: int, lora_alpha: int, num_classes: int, device):
     return VisionTransformerBase(vit_type=vit_type,
@@ -22,34 +21,24 @@ def get_base_model_vit(vit_type: str, use_lora: bool, lora_rank: int, lora_alpha
                                  device=device)
 
 
-# Factory method
-def _initialize_centralized_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
-    global centralized_base_model
 
-    if centralized_base_model is None:
-        centralized_base_model = CentralizedModel(
-            base_model=base_model,
-            auto_encoder=auto_encoder,
-            split_layer=split_layer,
-            num_classes=num_classes,
-            device=device,
-        )
-
-
-    return centralized_base_model
 
 # Get the AE-injected central model
 def get_centralized_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
-    _initialize_centralized_model(base_model, auto_encoder, split_layer, num_classes, device)
-
-    return centralized_base_model
+    return CentralizedModel(
+        base_model=base_model,
+        auto_encoder=auto_encoder,
+        split_layer=split_layer,
+        num_classes=num_classes,
+        device=device,
+    )
 
 def get_split_model(base_model: VisionTransformerBase, auto_encoder: IdentityAE, split_layer: int, num_classes: int, device):
-    _initialize_centralized_model(base_model, auto_encoder, split_layer, num_classes, device)
+    centralized_base_model = get_centralized_model(base_model, auto_encoder, split_layer, num_classes, device)
 
-    _client_model = ClientModel(device=device)
+    _client_model = ClientModel(centralized_base_model, device=device)
 
-    return _client_model, ServerModel(device), client_model_requires_any_grad(_client_model)
+    return _client_model, ServerModel(centralized_base_model, device), client_model_requires_any_grad(_client_model)
 
 
 class CentralizedModel(AEVisionTransformer):
@@ -75,7 +64,7 @@ class CentralizedModel(AEVisionTransformer):
         return self
 
 class ClientModel(nn.Module):
-    def __init__(self, device):
+    def __init__(self, centralized_base_model, device):
         super().__init__()
         self.device = device
         self.split_layer = centralized_base_model.split_layer
@@ -155,7 +144,7 @@ class ClientModel(nn.Module):
 
 
 class ServerModel(nn.Module):
-    def __init__(self, device):
+    def __init__(self, centralized_base_model, device):
         super().__init__()
         self.device = device
 

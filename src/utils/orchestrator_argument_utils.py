@@ -110,8 +110,8 @@ def expand_argument_parser_with_ae_pretraining_parameters(argument_parser):
     return argument_parser
 
 def expand_argument_parser_with_distributed_learning_parameters(argument_parser):
-    argument_parser.add_argument('--nr_of_clients', nargs='+', type=int, required=True, help='The number of clients to use during training.')
-    argument_parser.add_argument('--dataset_split_type', nargs='+', type=str, required=True, choices=['iid', 'noniid'], help='The type of data distribution that should be used for splitting the original dataset into all separate client-side datasets.')
+    argument_parser.add_argument('--nr_of_clients', nargs='+', type=int, default=5, required=False, help='The number of clients to use during training.')
+    argument_parser.add_argument('--dataset_split_type', nargs='+', type=str, default='noniid', required=False, choices=['iid', 'noniid'], help='The type of data distribution that should be used for splitting the original dataset into all separate client-side datasets.')
 
     return argument_parser
 

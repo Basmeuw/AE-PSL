@@ -36,7 +36,7 @@ from trainers.implementations.image_text_retrieval.centralized_trainer import \
 from trainers.implementations.image_text_retrieval.fl_trainer import FLTrainer as image_text_retrieval_fl_trainer
 from trainers.implementations.image_text_retrieval.mpsl_trainer import MPSLTrainer as image_text_retrieval_mpsl_trainer
 
-from src.models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
+from models.vision_transformer.base.vision_transformer_base import VisionTransformerBase
 
 
 class SupportedModel(Enum):
@@ -153,7 +153,7 @@ def get_split_model_and_trainer_vit(global_args: dict, base_model: VisionTransfo
                                                                                                                 ExperimentTrainer):
     dataset = global_args['dataset']
     if dataset == 'cifar100':
-        from src.models.vision_transformer.implementations.unimodal.image_classification.models import \
+        from models.vision_transformer.implementations.unimodal.image_classification.models import \
             get_split_model as get_split_model_vit
         client_model, server_model, client_model_requires_any_grad = get_split_model_vit(
             base_model=base_model,

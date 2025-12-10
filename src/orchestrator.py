@@ -8,7 +8,7 @@ import traceback
 from datetime import datetime
 from argparse import Namespace
 
-
+from main_mpsl_2_stage import run_2_stage_mpsl
 from utils.orchestrator_argument_utils import (
     build_base_argument_parser,
     expand_argument_parser_with_adapter_approach_parameters,
@@ -28,7 +28,7 @@ def setup_orchestrator_parser():
     parser = build_base_argument_parser()
     parser = expand_argument_parser_with_adapter_approach_parameters(parser)
     parser = expand_argument_parser_with_ae_pretraining_parameters(parser)
-    # parser = expand_argument_parser_with_distributed_learning_parameters(parser)
+    parser = expand_argument_parser_with_distributed_learning_parameters(parser)
 
     # Orchestrator specific controls
     parser.add_argument('--experiment_name', type=str, default='experiment',
@@ -37,6 +37,9 @@ def setup_orchestrator_parser():
                         help='Name/Tag for the experiment campaign folder.')
     parser.add_argument('--resume_from_manifest', type=str, default=None,
                         help='Path to a manifest.json file to resume an interrupted campaign.')
+    parser.add_argument('--train_method', nargs='+', type=str, choices=['centralized', 'mpsl'], default='centralized')
+    parser.add_argument('--test_num_workers', type=int, default=5,
+                        help='num_workers provided to the test Dataloader. For Split Learning, we differentiate between num_workers for the train Dataloader and test_num_workers for the test Dataloader.')
 
     return parser
 
@@ -180,7 +183,10 @@ def run_orchestrator():
         try:
             # Execute the training stage directly
             # This handles AE pre-training/loading internally
-            run_2_stage(current_run_args, job_params)
+            if current_run_args['train_method'] == 'centralized':
+                run_2_stage(current_run_args, job_params)
+            elif current_run_args['train_method'] == 'mpsl':
+                run_2_stage_mpsl(current_run_args, job_params)
 
         except KeyboardInterrupt:
             print("\nOrchestrator interrupted by user.")

@@ -7,7 +7,7 @@ from tqdm import tqdm
 from trainers.implementations.classification.centralized_trainer import CentralizedTrainer
 from trainers.implementations.experiment_results import ExperimentResults
 
-from src.models.meta_transformer.base.data2seq import InputModality
+from models.meta_transformer.base.data2seq import InputModality
 
 
 class Profiler:

@@ -1,7 +1,8 @@
 from tqdm import tqdm
 
-from src.ae_trainers.implementations.ae_experiment_results import ExperimentResultsAE
-from src.trainers.implementations.experiment_trainer import ExperimentTrainer
+from models import InputModality
+from ae_trainers.implementations.ae_experiment_results import ExperimentResultsAE
+from trainers.implementations.experiment_trainer import ExperimentTrainer
 
 
 class CentralizedAETrainer(ExperimentTrainer):
@@ -21,6 +22,7 @@ class CentralizedAETrainer(ExperimentTrainer):
 
             # Note: this currently uses the full model in memory, but forward through the first part only
             # For edge training, we shouldn't pass the full model to all edge devices
+            # X = X[InputModality.IMAGE].to(device)
             activations = base_model.retrieve_split_layer_activations(X, split_layer)
 
             reconstructed = auto_encoder(activations)

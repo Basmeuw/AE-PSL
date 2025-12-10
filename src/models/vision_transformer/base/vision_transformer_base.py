@@ -23,7 +23,7 @@ class VisionTransformerBase(nn.Module):
             raise ValueError(f"Unsupported ViT type: {vit_type}")
 
 
-        self.vit.to(device)
+
         self.device = device
 
         # Replace with new head for the desired number of classes
@@ -47,6 +47,8 @@ class VisionTransformerBase(nn.Module):
             # Ensure everything is trainable (default behavior, but being explicit is safe)
             for param in self.vit.parameters():
                 param.requires_grad = True
+
+        self.vit.to(device)
 
     def _apply_lora_to_encoder(self, rank, alpha):
         """Recursively swaps Linear layers for LoRALinear in the encoder."""

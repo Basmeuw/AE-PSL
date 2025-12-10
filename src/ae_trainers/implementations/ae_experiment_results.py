@@ -2,9 +2,10 @@ from typing import List
 
 
 class ExperimentResultsAE:
-    epochs: List[int] = []
-    train_metric: List = []
-    test_metric: List = []
+    def __init__(self):
+        self.epochs: list[int] = []
+        self.train_metric: list = []
+        self.test_metric: list = []
 
     def add_results(self, epoch_nr, metric, is_in_test_mode):
         if epoch_nr not in self.epochs:

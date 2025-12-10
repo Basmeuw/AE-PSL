@@ -1,11 +1,14 @@
 import copy
 import threading
+import warnings
 from argparse import Namespace
 
 import torch
 
 import available_datasets as datasets
 import models
+from ae_trainers.ae_trainer import pretrain_auto_encoder
+from main_centralized_2_stage import run_2_stage
 from models import IdentityAE
 from models import get_base_model
 from trainers.implementations.experiment_results import ExperimentResults
@@ -96,10 +99,7 @@ def setup_arguments() -> dict:
     return namespace_to_dict(args)
 
 
-if __name__ == '__main__':
-    global_args = setup_arguments()
-    print(global_args)
-
+def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
     set_random_seed(global_args['random_seed'])
 
     # # # # # # # # # # # # # # # # # Setup # # # # # # # # # # # # # # # # #
@@ -108,20 +108,48 @@ if __name__ == '__main__':
     total_batch_size = global_args['nr_of_clients'] * mini_batch_size
 
     print(f'Device: {device}')
-    print(f'Available datasets: {datasets.available_datasets()}, chosen: {global_args["dataset"]} with batch_size: {global_args["batch_size"]} and mini-batch size: {mini_batch_size}. Hence real total batch_size is {total_batch_size}')
+    print(
+        f'Available datasets: {datasets.available_datasets()}, chosen: {global_args["dataset"]} with batch_size: {global_args["batch_size"]} and mini-batch size: {mini_batch_size}. Hence real total batch_size is {total_batch_size}')
 
     if total_batch_size > global_args['batch_size']:
         raise Exception(f'total_batch_size > chosen batch_size ({total_batch_size} > {global_args["batch_size"]})')
 
-    full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=global_args['nr_of_clients'], split=global_args['dataset_split_type'], seed=global_args['random_seed'], global_args=global_args)
+    full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=global_args['nr_of_clients'],
+                                      split=global_args['dataset_split_type'], seed=global_args['random_seed'],
+                                      global_args=global_args)
 
     test_ds = full_dataset.load_test_set()
-    if global_args['small_test_run']: test_ds = datasets.Subset(full_dataset, range(0, 32))  # Only use 32 samples for the test
-    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args['batch_size'], shuffle=False, pin_memory=True, num_workers=global_args['test_num_workers'], collate_fn=full_dataset.get_collate_fn(), drop_last=False)
+    if global_args['small_test_run']: test_ds = datasets.Subset(full_dataset, range(0,
+                                                                                    len(full_dataset) // 20))  # Only use 32 samples for the test
+    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args['batch_size'], shuffle=False, pin_memory=True,
+                                          num_workers=global_args['test_num_workers'],
+                                          collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
     base_model = get_base_model(global_args, device=device)
 
-    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(global_args, device, base_model, IdentityAE())
+
+    # ============== AE Pre-training ==============
+    # TODO Using a single global dataset DOWNSTREAM of the clients for AE pre-training. This may leak information between clients!
+    warnings.warn(
+        "Using a single global dataset DOWNSTREAM of the clients for AE pre-training. This may leak information between clients!")
+    if global_args['small_test_run']: train_dataset = datasets.Subset(full_dataset, range(0, len(full_dataset) // 20))
+    else: train_dataset = full_dataset
+    train_dataloader = datasets.DataLoader(train_dataset, batch_size=global_args['batch_size'], shuffle=True,
+                                           pin_memory=True,
+                                           num_workers=global_args['num_workers'],
+                                           collate_fn=full_dataset.get_collate_fn())
+
+
+    auto_encoder_model = pretrain_auto_encoder(global_args, base_model, train_dataloader, test_dataloader, device)
+
+    if global_args['ae_pretrain_only']:
+        print("Skipping stage 2 as per user request.")
+        return
+
+
+
+    (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(
+        global_args, device, base_model, auto_encoder_model)
     server_model = server_model.switch_to_device(device)
 
     client_dataloaders = dict()
@@ -132,13 +160,18 @@ if __name__ == '__main__':
 
     max_nr_of_batches_in_epoch = 0
 
-    print(f'Number of trainable params server model: {sum(p.numel() for p in server_model.parameters() if p.requires_grad)} | Total number of parameters: {sum(p.numel() for p in server_model.parameters())}')
-    print(f'Number of trainable params client model: {sum(p.numel() for p in client_model.parameters() if p.requires_grad)} | Total number of parameters: {sum(p.numel() for p in client_model.parameters())}')
+    print(
+        f'Number of trainable params server model: {sum(p.numel() for p in server_model.parameters() if p.requires_grad)} | Total number of parameters: {sum(p.numel() for p in server_model.parameters())}')
+    print(
+        f'Number of trainable params client model: {sum(p.numel() for p in client_model.parameters() if p.requires_grad)} | Total number of parameters: {sum(p.numel() for p in client_model.parameters())}')
 
     for client_id in range(global_args['nr_of_clients']):
         client_train_data = full_dataset.load_partition(partition_id=client_id)
-        if global_args['small_test_run']: client_train_data = datasets.Subset(client_train_data, range(0, 32))  # Only use 32 samples for the test
-        client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True, pin_memory=True, num_workers=global_args['num_workers'], collate_fn=full_dataset.get_collate_fn(), drop_last=False)
+        if global_args['small_test_run']: client_train_data = datasets.Subset(client_train_data, range(0,
+                                                                                                       32))  # Only use 32 samples for the test
+        client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True,
+                                                      pin_memory=True, num_workers=global_args['num_workers'],
+                                                      collate_fn=full_dataset.get_collate_fn(), drop_last=False)
 
         client_dataloaders[client_id] = client_train_dataloader
 
@@ -157,6 +190,7 @@ if __name__ == '__main__':
 
     # A utility object that can be used to streamline archiving experiment results.
     experiment_results = ExperimentResults()
+    experiment_results.params = search_space_args
 
     # # # # # # # # # # # # # # # # # Training # # # # # # # # # # # # # # # # #
     for epoch_nr in range(global_args['nr_of_epochs']):
@@ -182,7 +216,8 @@ if __name__ == '__main__':
 
         server_scheduler.step()
 
-        aggregated_client_model = fed_avg(client_models, get_client_weight_multipliers__nr_of_elements(nr_of_elements_per_client_dict))
+        aggregated_client_model = fed_avg(client_models,
+                                          get_client_weight_multipliers__nr_of_elements(nr_of_elements_per_client_dict))
 
         if global_args['save_model_after_each_epoch']:
             save_split_model(aggregated_client_model, server_model, global_args['save_file_name'])
@@ -204,3 +239,10 @@ if __name__ == '__main__':
 
     if global_args['save_final_model']:
         save_split_model(aggregated_client_model, server_model, global_args['save_file_name'])
+
+
+if __name__ == '__main__':
+    global_args = setup_arguments()
+    run_2_stage_mpsl(global_args, None)
+
+

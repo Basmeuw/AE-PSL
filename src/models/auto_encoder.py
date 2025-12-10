@@ -28,6 +28,8 @@ def initialize_AE(global_args, input_dim):
 
     if ae_type == 'identity':
         return AE_REGISTRY[ae_type]()
+    elif input_dim == global_args['ae_latent_dim']:
+        return AE_REGISTRY['identity']()
     elif ae_type == 'linear':
         return AE_REGISTRY[ae_type](input_dim=input_dim, latent_dim=global_args['ae_latent_dim'])
 
@@ -42,34 +44,40 @@ class IdentityAE(nn.Module):
         self.decoder_net = nn.Identity()
         self.is_trained = False
     def encode(self, x):
-        return x
+        return self.encoder_net(x)
 
     def decode(self, x):
-        return x
+        return self.decoder_net(x)
 
-    def forward(self, x):
-        return self.decode(self.encode(x))
+    def forward(self, x):        return self.decode(self.encode(x))
+
 
 @register_AE_type('linear')
 class LinearAE(IdentityAE):
     """Linear compression + expansion."""
+
     def __init__(self, input_dim, latent_dim, dropout=0.01):
         super().__init__()
-        self.fc1 = nn.Linear(input_dim, latent_dim)
-        self.ln1 = nn.LayerNorm(latent_dim)
-        self.dropout = nn.Dropout(dropout)
-        self.fc2 = nn.Linear(latent_dim, input_dim)
-        self.ln2 = nn.LayerNorm(input_dim)
-        self.relu = nn.ReLU()
 
-        init.kaiming_uniform_(self.fc1.weight, nonlinearity='relu')
-        init.xavier_uniform_(self.fc2.weight)
-        init.zeros_(self.fc1.bias)
-        init.zeros_(self.fc2.bias)
+        # --- Modifications Start Here ---
+        # The encoder_net now holds the sequence of encoding layers
+        self.encoder_net = nn.Sequential(
+            nn.Linear(input_dim, latent_dim),
+            nn.LayerNorm(latent_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
 
-    def encode(self, x):
-        return self.dropout(self.relu(self.ln1(self.fc1(x))))
+        # The decoder_net now holds the sequence of decoding layers
+        self.decoder_net = nn.Sequential(
+            nn.Linear(latent_dim, input_dim),
+            nn.LayerNorm(input_dim)
+        )
 
-    def decode(self, x):
-        return self.ln2(self.fc2(x))
+        # Initialize weights (referencing the layers within Sequential)
+        # Note: Accessing layers by index requires knowing the structure
+        init.kaiming_uniform_(self.encoder_net[0].weight, nonlinearity='relu')
+        init.xavier_uniform_(self.decoder_net[0].weight)
+        init.zeros_(self.encoder_net[0].bias)
+        init.zeros_(self.decoder_net[0].bias)
 
