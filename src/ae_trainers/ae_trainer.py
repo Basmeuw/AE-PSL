@@ -43,7 +43,7 @@ def get_auto_encoder(global_args, base_model, device, full_dataset : Distributed
 
     if global_args['ae_use_existing']:
         # Load an existing AE model based on required ae signature
-        return load_auto_encoder_model(global_args, base_model, ae_signature, device)
+        return load_auto_encoder_model(global_args, auto_encoder_model, ae_signature, device)
 
 
     # If the AE pretrain dataset differs, then we are training on downstream client data
