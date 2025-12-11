@@ -44,6 +44,10 @@ class SupportedModel(Enum):
     VIT_B_16 = 'vit_b_16'
     VIT_B_32 = 'vit_b_32'
 
+
+img_classication_datasets = ['cifar100', 'food101']
+
+
 # ========= BASE MODEL SELECTION ========= #
 
 def get_base_model(global_args: dict, device: torch.device) -> Any:
@@ -61,7 +65,15 @@ def get_base_model(global_args: dict, device: torch.device) -> Any:
 def get_base_model_vit(global_args: dict, device: torch.device):
     dataset = global_args['dataset']
 
+
     if dataset == 'cifar100':
+        num_classes = 100
+    elif dataset == 'food101':
+        num_classes = 101
+    else:
+        raise NotImplementedError(f'Chosen dataset {dataset} is not supported.')
+
+    if dataset in img_classication_datasets:
         from models.vision_transformer.implementations.unimodal.image_classification.models import \
             get_base_model_vit as get_base_model_vit_impl
         return get_base_model_vit_impl(
@@ -69,9 +81,10 @@ def get_base_model_vit(global_args: dict, device: torch.device):
             use_lora=global_args['use_lora'],
             lora_rank=global_args['lora_rank'],
             lora_alpha=global_args['lora_alpha'],
-            num_classes=100,
+            num_classes=num_classes,
             device=device
         )
+
 
 
 # ========= INJECTED MODEL AND TRAINER SELECTION ========= #
@@ -135,14 +148,22 @@ def get_federated_model_and_trainer(global_args: dict, device: torch.device, aut
 def get_centralized_model_and_trainer_vit(global_args: dict, base_model: VisionTransformerBase,
                                           auto_encoder: IdentityAE, device: torch.device) -> (Any, ExperimentTrainer):
     dataset = global_args['dataset']
+
     if dataset == 'cifar100':
+        num_classes = 100
+    elif dataset == 'food101':
+        num_classes = 101
+    else:
+        raise NotImplementedError(f'Chosen dataset {dataset} is not supported.')
+
+    if dataset in img_classication_datasets:
         from models.vision_transformer.implementations.unimodal.image_classification.models import \
             get_centralized_model as get_centralized_model_vit
         return get_centralized_model_vit(
             base_model=base_model,
             auto_encoder=auto_encoder,
             split_layer=global_args['split_layer'],
-            num_classes=100,
+            num_classes=num_classes,
             device=device
         ), classification_centralized_trainer()
     else:
@@ -152,14 +173,22 @@ def get_centralized_model_and_trainer_vit(global_args: dict, base_model: VisionT
 def get_split_model_and_trainer_vit(global_args: dict, base_model: VisionTransformerBase, auto_encoder: IdentityAE, device: torch.device) -> (Any,
                                                                                                                 ExperimentTrainer):
     dataset = global_args['dataset']
+
     if dataset == 'cifar100':
+        num_classes = 100
+    elif dataset == 'food101':
+        num_classes = 101
+    else:
+        raise NotImplementedError(f'Chosen dataset {dataset} is not supported.')
+
+    if dataset in img_classication_datasets:
         from models.vision_transformer.implementations.unimodal.image_classification.models import \
             get_split_model as get_split_model_vit
         client_model, server_model, client_model_requires_any_grad = get_split_model_vit(
             base_model=base_model,
             auto_encoder=auto_encoder,
             split_layer=global_args['split_layer'],
-            num_classes=100,
+            num_classes=num_classes,
             device=device
         )
 

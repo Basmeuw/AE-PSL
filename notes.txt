@@ -85,7 +85,6 @@ We also need to take care of the non-iid distribution.
 
 
 TODO:
-- Need to fix that the activation to train the AE are not recalculated each epoch.
 - figure out why AE pre-training is slow
 - Need to fix AE training, seems like results are suboptimal.
 
@@ -99,3 +98,5 @@ TODO:
 - Need to write out all possible scenario's for AE dataset loading, for centralized and normal training.
 - Cache the activations for AE training, if allowed (so need the same dataset and split layer to be reused)
 -
+
+- potentially use the ViT MAE from facebook? Generalizes better

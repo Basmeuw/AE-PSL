@@ -4,6 +4,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 
+
 # Note that this folder is called 'available_datasets' to avoid conflicts with the huggingface 'datasets' package.
 from available_datasets.unimodal.image_classification import *
 from .multimodal.action_recognition.kinetics_sounds import KineticsSounds
@@ -14,10 +15,12 @@ from .multimodal.image_text_retrieval.flickr30k import Flickr30K
 from .multimodal.sentiment_analysis.t4sa import T4SA
 from .multimodal.vqa.coco_qa import COCO_QA
 from .unimodal.image_classification.cifar100 import CIFAR100
+from .unimodal.image_classification.food101 import Food101
 
 dataloaders = {
 	# unimodal
 	'cifar100': (CIFAR100, 'cifar100'),
+	'food101': (Food101, 'food101'),
 
     # multimodal
 	'coco-qa': (COCO_QA, 'coco-qa'),

@@ -19,7 +19,11 @@ class CIFAR100(torchvision.datasets.CIFAR100):
 	def __init__(self, train=False, transform=None, **kwargs):
 
 		super().__init__(os.path.join(os.environ['TORCH_DATA_DIR'], 'cifar100'), train=train, transform=transform, target_transform=None, download=True)
-		self.data_processor = AutoImageProcessor.from_pretrained("facebook/vit-mae-base", cache_dir=os.path.join(os.environ['PRE_PROCESSORS_CACHE_DIR'], 'vit-mae-base'))
+		# self.data_processor = AutoImageProcessor.from_pretrained("facebook/vit-mae-base", cache_dir=os.path.join(os.environ['PRE_PROCESSORS_CACHE_DIR'], 'vit-mae-base'))
+		self.data_processor = None
+
+		self.transform = torchvision.models.ViT_B_16_Weights.DEFAULT.transforms()
+
 
 	@property
 	def _classes(self):
