@@ -1,3 +1,5 @@
+import torch
+from torch.utils.data import TensorDataset
 from tqdm import tqdm
 
 from models import InputModality
@@ -6,24 +8,26 @@ from trainers.implementations.experiment_trainer import ExperimentTrainer
 
 
 class CentralizedAETrainer(ExperimentTrainer):
-    def _perform_epoch(self, experiment_results: ExperimentResultsAE, base_model, auto_encoder, split_layer, device, dataloader, epoch_nr, optimizer, loss_fn):
+
+
+    def _perform_epoch(self, experiment_results, auto_encoder, device, dataloader, epoch_nr, optimizer, loss_fn,
+                       **kwargs):
+        # NOTE: base_model and split_layer are no longer needed here!
+
         is_in_test_mode = optimizer is None
         auto_encoder.eval() if is_in_test_mode else auto_encoder.train()
 
-        nr_of_batches, data_iter = len(dataloader), iter(dataloader)
         total_loss = 0
+        nr_of_batches = len(dataloader)
 
-        for batch_nr in tqdm(range(nr_of_batches)):
+        # The dataloader now yields PRE-CALCULATED activations
+        for batch in tqdm(dataloader, desc=f"Epoch {epoch_nr}"):
             if not is_in_test_mode:
                 optimizer.zero_grad()
 
-            # targets can be ignored, as we use a reconstruction loss
-            X, _ = next(data_iter)
-
-            # Note: this currently uses the full model in memory, but forward through the first part only
-            # For edge training, we shouldn't pass the full model to all edge devices
-            # X = X[InputModality.IMAGE].to(device)
-            activations = base_model.retrieve_split_layer_activations(X, split_layer)
+            # TensorDataset yields a tuple (tensor,), so we unpack it
+            # We move the activations to GPU here for training
+            activations = batch[0].to(device)
 
             reconstructed = auto_encoder(activations)
             loss = loss_fn(reconstructed, activations)
@@ -34,13 +38,11 @@ class CentralizedAETrainer(ExperimentTrainer):
                 loss.backward()
                 optimizer.step()
 
-
         total_loss /= nr_of_batches
 
-
         experiment_results.add_results(epoch_nr, total_loss, is_in_test_mode)
-
-        return f'test loss {total_loss}' if is_in_test_mode else f'Finished epoch {epoch_nr} with train loss {total_loss}'
+        mode_str = 'test' if is_in_test_mode else 'train'
+        return f'Finished epoch {epoch_nr} with {mode_str} loss {total_loss}'
 
     def train_epoch(self, **kwargs):
         return self._perform_epoch(

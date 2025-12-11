@@ -65,6 +65,25 @@ need 3 steps:
 
 Currently, we do not use validation loss to save the best model!. See if early stopping is necessary.
 
+
+Centralized training:
+Load train and test dataset
+Load base model
+We check in main if the dataset is the same, if not, load the seperate dataset, and pass it as param to external function
+if the dataset is the same, print using downstream dataset (option 2)
+The external function creates the dataloaders.
+
+
+Distributed training
+Load train and test dataset
+Load base model
+Option 1: pre-train single AE on a centralized dataset.
+
+Option 2: pre-train AE on downstream dataset. Each client pre-trains its own AE.
+Here we either need to aggregate the decoders after training, or keep a per-client decoder on the server-side.
+We also need to take care of the non-iid distribution.
+
+
 TODO:
 - Need to fix that the activation to train the AE are not recalculated each epoch.
 - figure out why AE pre-training is slow
@@ -75,3 +94,8 @@ TODO:
 - Add more datasets.
 - Need to adapt results to per-client structure
 - Give the pretrained AEs unique names
+
+- Fix on edge AE training vs normal training
+- Need to write out all possible scenario's for AE dataset loading, for centralized and normal training.
+- Cache the activations for AE training, if allowed (so need the same dataset and split layer to be reused)
+-

@@ -7,12 +7,13 @@ import torch
 
 import available_datasets as datasets
 import models
-from ae_trainers.ae_trainer import pretrain_auto_encoder
+from ae_trainers.ae_trainer import pretrain_auto_encoder, get_auto_encoder
 from main_centralized_2_stage import run_2_stage
 from models import IdentityAE
 from models import get_base_model
 from trainers.implementations.experiment_results import ExperimentResults
 from trainers.implementations.experiment_trainer import ExperimentTrainer
+from utils.ae_registry_utils import load_auto_encoder_model
 from utils.argument_utils import build_base_argument_parser, \
     expand_argument_parser_with_distributed_learning_parameters, validate_base_argument_constraints, set_env_variables, \
     namespace_to_dict
@@ -127,26 +128,15 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
 
     base_model = get_base_model(global_args, device=device)
 
+    is_train_ae_on_downstream_data = global_args['dataset'] == global_args['ae_pretrain_dataset']
 
-    # ============== AE Pre-training ==============
-    # TODO Using a single global dataset DOWNSTREAM of the clients for AE pre-training. This may leak information between clients!
-    warnings.warn(
-        "Using a single global dataset DOWNSTREAM of the clients for AE pre-training. This may leak information between clients!")
-    if global_args['small_test_run']: train_dataset = datasets.Subset(full_dataset, range(0, len(full_dataset) // 20))
-    else: train_dataset = full_dataset
-    train_dataloader = datasets.DataLoader(train_dataset, batch_size=global_args['batch_size'], shuffle=True,
-                                           pin_memory=True,
-                                           num_workers=global_args['num_workers'],
-                                           collate_fn=full_dataset.get_collate_fn())
-
-
-    auto_encoder_model = pretrain_auto_encoder(global_args, base_model, train_dataloader, test_dataloader, device)
+    # We only reuse the full dataset if AE pretraining uses the same dataset
+    auto_encoder_model = get_auto_encoder(global_args, base_model, device,
+                                          full_dataset if is_train_ae_on_downstream_data else None)
 
     if global_args['ae_pretrain_only']:
-        print("Skipping stage 2 as per user request.")
+        print("Skipping fine-tuning as ae_pretrain_only is set to true")
         return
-
-
 
     (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(
         global_args, device, base_model, auto_encoder_model)

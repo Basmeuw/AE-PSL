@@ -107,14 +107,16 @@ def load_auto_encoder_model(global_args, model, signature, device):
         weights_path = global_args['ae_specific_weights_path']
     else:
         # Define what constitutes a "match" for this experiment
-        required_params = {
-            'type': global_args['ae_type'],
-            'dataset': global_args['ae_pretrain_dataset'],
-            'dataset_proportion': global_args['ae_pretrain_dataset_fraction'],
-            'model': global_args['model'],
-            'split_layer': global_args['split_layer'],
-            'latent_dim': global_args['ae_latent_dim'],
-        }
+        # required_params = {
+        #     'type': global_args['ae_type'],
+        #     'dataset': global_args['ae_pretrain_dataset'],
+        #     'dataset_proportion': global_args['ae_pretrain_dataset_fraction'],
+        #     'model': global_args['model'],
+        #     'split_layer': global_args['split_layer'],
+        #     'latent_dim': global_args['ae_latent_dim'],
+        # }
+        # we the required params to the entire signature, however sometimes we might not care about certain parameters to match.
+        required_params = signature
         weights_path = find_matching_pretrained_ae(required_params)
 
     # 3. Load weights if found

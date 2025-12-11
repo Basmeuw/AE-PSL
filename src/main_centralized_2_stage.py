@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Subset
 
 import available_datasets as datasets
-from ae_trainers.ae_trainer import pretrain_auto_encoder
+from ae_trainers.ae_trainer import pretrain_auto_encoder, get_auto_encoder
 from ae_trainers.implementations.ae_experiment_results import ExperimentResultsAE
 from ae_trainers.implementations.classification.centralized_ae_trainer import CentralizedAETrainer
 from models import get_centralized_model_and_trainer, IdentityAE, get_base_model
@@ -82,12 +82,14 @@ def run_2_stage(global_args: dict, search_space_args: dict):
     # First load the base model, which is used to retrieve intermediate activations for the auto-encoder training
     base_model = get_base_model(global_args, device)
     base_model.to(device)
-    # ============== AE Pre-training ==============
-    auto_encoder_model = pretrain_auto_encoder(global_args, base_model, train_dataloader, test_dataloader, device)
 
+    is_train_ae_on_downstream_data = global_args['dataset'] == global_args['ae_pretrain_dataset']
+
+    # We only reuse the full dataset if AE pretraining uses the same dataset
+    auto_encoder_model = get_auto_encoder(global_args, base_model, device, full_dataset if is_train_ae_on_downstream_data else None)
 
     if global_args['ae_pretrain_only']:
-        print("Skipping stage 2 as per user request.")
+        print("Skipping fine-tuning as ae_pretrain_only is set to true")
         return
 
     # Using the base model and the AE, load the full centralized model and the trainer
