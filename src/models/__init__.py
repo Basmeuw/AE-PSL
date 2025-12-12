@@ -30,6 +30,7 @@ from trainers.implementations.classification.centralized_trainer import \
     CentralizedTrainer as classification_centralized_trainer
 from trainers.implementations.classification.fl_trainer import FLTrainer as classification_fl_trainer
 from trainers.implementations.classification.mpsl_trainer import MPSLTrainer as classification_mpsl_trainer
+from trainers.implementations.classification.sasl_trainer import SASLTrainer
 from trainers.implementations.experiment_trainer import ExperimentTrainer
 from trainers.implementations.image_text_retrieval.centralized_trainer import \
     CentralizedTrainer as image_text_retrieval_centralized_trainer
@@ -192,8 +193,7 @@ def get_split_model_and_trainer_vit(global_args: dict, base_model: VisionTransfo
             device=device
         )
 
-        return (client_model, server_model, client_model_requires_any_grad), classification_mpsl_trainer(
-            fusion_type=global_args['fusion_type'], modalities=[InputModality.IMAGE])
+        return (client_model, server_model, client_model_requires_any_grad), SASLTrainer()
     else:
         raise NotImplementedError(f'Chosen model\'s dataset {dataset} is currently not supported.')
 

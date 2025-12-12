@@ -179,7 +179,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
     server_optimizer, server_scheduler = get_optimizer_and_scheduler(server_model, global_args)
 
     # A utility object that can be used to streamline archiving experiment results.
-    experiment_results = ExperimentResults()
+    experiment_results = ExperimentResults('none')
     experiment_results.params = search_space_args
 
     # # # # # # # # # # # # # # # # # Training # # # # # # # # # # # # # # # # #
@@ -229,6 +229,8 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
 
     if global_args['save_final_model']:
         save_split_model(aggregated_client_model, server_model, global_args['save_file_name'])
+
+
 
 
 if __name__ == '__main__':

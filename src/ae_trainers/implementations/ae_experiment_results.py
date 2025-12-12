@@ -2,10 +2,12 @@ from typing import List
 
 
 class ExperimentResultsAE:
-    def __init__(self):
+    def __init__(self, validation_mode):
         self.epochs: list[int] = []
         self.train_metric: list = []
         self.test_metric: list = []
+        self.final_test_metric: float = -1
+        self.using_validation_set = validation_mode != 'none'
 
     def add_results(self, epoch_nr, metric, is_in_test_mode):
         if epoch_nr not in self.epochs:
@@ -20,5 +22,6 @@ class ExperimentResultsAE:
         return {
             "epochs": self.epochs,
             "train_metric": self.train_metric,
-            "test_metric": self.test_metric,
+            "validation_metric" if self.using_validation_set else "test_metric" : self.test_metric,
+            "final_test_metric": self.final_test_metric if self.using_validation_set else self.test_metric[-1]
         }

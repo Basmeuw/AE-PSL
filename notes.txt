@@ -100,3 +100,4 @@ TODO:
 -
 
 - potentially use the ViT MAE from facebook? Generalizes better
+- need to add in the correct model save path

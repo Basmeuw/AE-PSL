@@ -1,7 +1,9 @@
+import os
 import warnings
 
 import torch
-from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, random_split
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -13,6 +15,7 @@ from models import InputModality
 from models.auto_encoder import initialize_AE, IdentityAE
 from utils.ae_registry_utils import load_auto_encoder_model, prepare_ae_dir, filename_from_signature, \
     save_ae_with_signature
+from utils.dataloader_utils import get_dataloaders_from_datasets
 from utils.model_saving_utils import save_ae_experiment_results
 from utils.scheduler_utils import get_ae_pretrain_optimizer_and_scheduler
 
@@ -34,12 +37,14 @@ def get_auto_encoder(global_args, base_model, device, full_dataset : Distributed
     }
 
     # Initialize an untrained AE model
+    # if latent dim == hidden dim of model, then it will initialize as an identity bottleneck regardless of model type
     auto_encoder_model = initialize_AE(global_args, base_model.get_hidden_dim())
     auto_encoder_model.to(device)
 
     if type(auto_encoder_model) is IdentityAE:
         print("AE type is IdentityAE, skipping AE pretraining/loading.")
         return auto_encoder_model
+
 
     if global_args['ae_use_existing']:
         # Load an existing AE model based on required ae signature
@@ -112,27 +117,45 @@ def get_auto_encoder(global_args, base_model, device, full_dataset : Distributed
         return pretrain_auto_encoder(global_args, base_model, auto_encoder_model, train_acts_dataset, test_acts_dataset, ae_signature, device)
 
 
+def pretrain_auto_encoder(global_args, base_model, auto_encoder_model, train_acts_dataset, test_acts_dataset,
+                          ae_signature, device,
+                          early_stopping_patience=3):
+    """
+    Args:
+        validation_mode (str): Options are 'none', 'early_saving', 'early_stopping'.
+        model_save_path (str): Path to save the best model checkpoint.
+        early_stopping_patience (int): Number of epochs to wait for improvement before stopping.
+    """
+    # ga validation_mode
+    # val_split
 
-def pretrain_auto_encoder(global_args, base_model, auto_encoder_model, train_acts_dataset, test_acts_dataset, ae_signature, device):
+    validation_mode = global_args['val_mode']
+    validation_split = global_args['val_split']
+    if validation_split == 0: validation_mode = 'none'
 
-    # Don't need to use the custom distributed dataset class here, as we are using activations only.
-    train_acts_dataloader = DataLoader(train_acts_dataset, batch_size=global_args['ae_pretrain_batch_size'], shuffle=True, pin_memory=True, num_workers=global_args['num_workers'])
-    test_acts_dataloader = DataLoader(test_acts_dataset, batch_size=global_args['ae_pretrain_batch_size'], shuffle=True, pin_memory=True, num_workers=global_args['num_workers'])
+    train_acts_dataloader, val_acts_dataloader, test_acts_dataloader = get_dataloaders_from_datasets(train_acts_dataset, test_acts_dataset, validation_mode, validation_split,
+                                  global_args['ae_batch_size'], global_args['num_workers'], DataLoader)
 
     auto_encoder_trainer = CentralizedAETrainer()
 
     optimizer, scheduler = get_ae_pretrain_optimizer_and_scheduler(auto_encoder_model, global_args)
-    loss_fn = torch.nn.MSELoss()  # make this configurable later
+    loss_fn = torch.nn.MSELoss()
 
     # A utility object that can be used to streamline archiving experiment results.
-    ae_experiment_results = ExperimentResultsAE()
-    prepare_ae_dir(ae_signature)
+    ae_experiment_results = ExperimentResultsAE(validation_mode)
+    model_save_dir = prepare_ae_dir(ae_signature)
+    model_save_path = os.path.join(model_save_dir, 'ae_model')
+
+    # Validation State Variables
+    best_val_loss = float('inf')
+    patience_counter = 0
 
     # # # # # # # # # # # # # # # # # Training # # # # # # # # # # # # # # # # #
     for epoch_nr in range(global_args['ae_pretrain_epochs']):
         print(f'Starting AE epoch {epoch_nr + 1}')
 
-        train_results_as_string = auto_encoder_trainer.train_epoch(
+        # 1. TRAIN
+        train_loss, train_msg = auto_encoder_trainer.train_epoch(
             experiment_results=ae_experiment_results,
             auto_encoder=auto_encoder_model,
             base_model=base_model,
@@ -143,30 +166,85 @@ def pretrain_auto_encoder(global_args, base_model, auto_encoder_model, train_act
             optimizer=optimizer,
             loss_fn=loss_fn
         )
-        print(train_results_as_string)
+        print(train_msg)
 
         scheduler.step()
 
-        with torch.no_grad():
-            print('Starting AE evaluation')
-            # NOTE: we are now using a different dataset to extract activations, unlike in feasibility experiment
-            test_results_as_string = auto_encoder_trainer.train_epoch(
-                experiment_results=ae_experiment_results,
-                auto_encoder=auto_encoder_model,
-                base_model=base_model,
-                split_layer=global_args['split_layer'],
-                device=device,
-                dataloader=test_acts_dataloader,
-                epoch_nr=epoch_nr + 1,
-                optimizer=None,
-                loss_fn=loss_fn
-            )
+        # 2. VALIDATION (Option 2 & 3)
+        if val_acts_dataloader is not None and validation_mode in ['early_saving', 'early_stopping']:
+            with torch.no_grad():
+                print('Starting AE Validation')
+                val_loss, val_msg = auto_encoder_trainer.test_epoch(
+                    experiment_results=ae_experiment_results,
+                    auto_encoder=auto_encoder_model,
+                    base_model=base_model,
+                    split_layer=global_args['split_layer'],
+                    device=device,
+                    dataloader=val_acts_dataloader,
+                    epoch_nr=epoch_nr + 1,
+                    loss_fn=loss_fn
+                )
+                print(f"Validation: {val_msg}")
 
-            print(test_results_as_string)
+                # Check improvement
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0
+                    print(f"Validation loss improved to {best_val_loss:.6f}. Saving model to {model_save_path}...")
+                    if model_save_path:
+                        torch.save(auto_encoder_model.state_dict(), model_save_path)
+                else:
+                    patience_counter += 1
+                    print(f"Validation loss did not improve. Patience: {patience_counter}/{early_stopping_patience}")
+
+                # Early Stopping Logic (Option 3)
+                if validation_mode == 'early_stopping' and patience_counter >= early_stopping_patience:
+                    print(f"Early stopping triggered after {epoch_nr + 1} epochs.")
+                    break
+
+        # Option 1: No Val (or just logging test set per epoch like original code)
+        elif validation_mode == 'none':
+            with torch.no_grad():
+                # Original behavior: Check test set every epoch simply for logging
+                _, test_msg = auto_encoder_trainer.test_epoch(
+                    experiment_results=ae_experiment_results,
+                    auto_encoder=auto_encoder_model,
+                    base_model=base_model,
+                    split_layer=global_args['split_layer'],
+                    device=device,
+                    dataloader=test_acts_dataloader,
+                    epoch_nr=epoch_nr + 1,
+                    loss_fn=loss_fn
+                )
+                print(test_msg)
 
         save_ae_experiment_results(ae_experiment_results, filename_from_signature(ae_signature))
 
-    print(f'Finished training AE - Saving final model')
+    print(f'Finished training AE.')
+
+    # 3. FINAL TEST RUN
+    # If we used early saving/stopping, load the best model
+    if validation_mode in ['early_saving', 'early_stopping'] and model_save_path:
+        print(f"Loading best model from {model_save_path} for final testing...")
+        try:
+            auto_encoder_model.load_state_dict(torch.load(model_save_path))
+        except FileNotFoundError:
+            print("Warning: Best model file not found. Using current weights.")
+
+    print('Starting Final AE Test Set Evaluation')
+    with torch.no_grad():
+        final_test_loss, final_test_msg = auto_encoder_trainer.test_epoch(
+            experiment_results=ae_experiment_results,
+            auto_encoder=auto_encoder_model,
+            base_model=base_model,
+            split_layer=global_args['split_layer'],
+            device=device,
+            dataloader=test_acts_dataloader,
+            epoch_nr=global_args['ae_pretrain_epochs'] + 1,  # specific index for final
+            loss_fn=loss_fn
+        )
+        ae_experiment_results.final_test_metric = final_test_loss
+        print(final_test_msg)
 
     if global_args['ae_save_final_weights']:
         save_ae_with_signature(auto_encoder_model, ae_signature)

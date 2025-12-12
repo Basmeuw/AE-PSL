@@ -42,7 +42,7 @@ class CentralizedTrainer(ExperimentTrainer):
 
         experiment_results.add_results(epoch_nr, acc, is_in_test_mode)
 
-        return f'test loss {total_loss} and accuracy {acc}' if is_in_test_mode else f'Finished epoch {epoch_nr} with train loss {total_loss} and accuracy {acc}'
+        return (total_loss, f'test loss {total_loss} and accuracy {acc}' if is_in_test_mode else f'Finished epoch {epoch_nr} with train loss {total_loss} and accuracy {acc}')
 
     def train_epoch(self, **kwargs):
         return self._perform_epoch(

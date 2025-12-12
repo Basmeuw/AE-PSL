@@ -2,13 +2,15 @@ from typing import List
 
 
 class ExperimentResults:
-    def __init__(self):
+    def __init__(self, validation_mode):
         self.epochs: List[int] = []
         self.train_metric = []
         self.test_metric = []
+        self.final_test_metric: float = -1
         self.incoming_client_communication_overhead_in_mb: int = -1
         self.outgoing_client_communication_overhead_in_mb: int = -1
         self.params: dict = {}
+        self.using_validation_set = validation_mode != 'none'
 
     def add_results(self, epoch_nr, metric, is_in_test_mode):
         if epoch_nr not in self.epochs:
@@ -18,6 +20,8 @@ class ExperimentResults:
             self.test_metric.append(metric)
         else:
             self.train_metric.append(metric)
+
+
 
     def set_client_communication_overhead(self, incoming_in_mb, outgoing_in_mb):
         """
@@ -30,19 +34,14 @@ class ExperimentResults:
         self.incoming_client_communication_overhead_in_mb = incoming_in_mb
         self.outgoing_client_communication_overhead_in_mb = outgoing_in_mb
 
-    # def get_aggregated_metric_per_epoch(self, metric: dict):
-    #     aggregated_metric_per_epoch = []
-    #     for epoch in self.epochs:
-    #         epoch_metrics = [metric[client_nr][epoch] for client_nr in metric if epoch in metric[client_nr]]
-    #         if epoch_metrics:
-    #             aggregated_metric_per_epoch[epoch] = sum(epoch_metrics) / len(epoch_metrics)
-    #     return aggregated_metric_per_epoch
 
     def to_json(self):
+        # if we don't use a validation set, we simply pick the last test score as final test metric
         return {
             "epochs": self.epochs,
             "train_metric": self.train_metric,
-            "test_metric": self.test_metric,
+            "validation_metric" if self.using_validation_set else "test_metric" : self.test_metric,
+            "final_test_metric": self.final_test_metric if self.using_validation_set else self.test_metric[-1],
             "incoming_client_communication_overhead_in_mb": self.incoming_client_communication_overhead_in_mb,
             "outgoing_client_communication_overhead_in_mb": self.outgoing_client_communication_overhead_in_mb,
             "job_params": self.params

@@ -27,6 +27,10 @@ def build_base_argument_parser():
     parser.add_argument('--pre_processors_cache_dir', type=str, default='../../shared_data/preprocessors', help='The directory for all pre-processor weights.')
     parser.add_argument('--tokenizer_weights_cache_dir', type=str, default='../../shared_data/tokenizers', help='The directory for all tokenizer weights.')
     parser.add_argument('--model_weights_dir', type=str, default='../../shared_data/model_checkpoints', help='The directory of all model weights. This is the directory in which the codebase expects the Meta-Transformer model weights to be present.')
+    parser.add_argument('--val_mode', type=str, choices=['none', 'early_saving', 'early_stopping'],
+                        default='early_stopping', help='Whether a validation set should be used TODO full explanation')
+    parser.add_argument('--val_split', type=float, default=0.1,
+                        help='The proportion of the dataset to use for validation.')
 
     # == Dataset and model ==
     parser.add_argument('--dataset', nargs='+', type=str, required=True, choices=dataloaders.keys(), help='The dataset that should be used.')

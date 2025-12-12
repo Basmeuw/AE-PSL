@@ -8,8 +8,6 @@ from trainers.implementations.experiment_trainer import ExperimentTrainer
 
 
 class CentralizedAETrainer(ExperimentTrainer):
-
-
     def _perform_epoch(self, experiment_results, auto_encoder, device, dataloader, epoch_nr, optimizer, loss_fn,
                        **kwargs):
         # NOTE: base_model and split_layer are no longer needed here!
@@ -38,11 +36,13 @@ class CentralizedAETrainer(ExperimentTrainer):
                 loss.backward()
                 optimizer.step()
 
-        total_loss /= nr_of_batches
+        if nr_of_batches > 0:
+            total_loss /= nr_of_batches
 
         experiment_results.add_results(epoch_nr, total_loss, is_in_test_mode)
         mode_str = 'test' if is_in_test_mode else 'train'
-        return f'Finished epoch {epoch_nr} with {mode_str} loss {total_loss}'
+
+        return total_loss, f'Finished epoch {epoch_nr} with {mode_str} loss {total_loss}'
 
     def train_epoch(self, **kwargs):
         return self._perform_epoch(

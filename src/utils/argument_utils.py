@@ -43,6 +43,8 @@ def build_base_argument_parser():
 
     # == Dataset and model ==
     parser.add_argument('--dataset', type=str, required=True, choices=dataloaders.keys(), help='The dataset that should be used.')
+    parser.add_argument('--val_mode', type=str, choices=['none', 'early_saving', 'early_stopping'], default='early_stopping', help='Whether a validation set should be used TODO full explanation')
+    parser.add_argument('--val_split', type=float, default=0.1, help='The proportion of the dataset to use for validation.')
 
     parser.add_argument('--model', type=str, help='The model that should be used.', choices=[x.lower() for x in SupportedModel.__members__.keys()], default='vit')
     parser.add_argument('--fusion_type', type=str, default='default', help='The type of fusion that should be used, if applicable. The \'default\' type has been used for the reported experiments. For available options, please refer to the model implementation of the chosen task.')
