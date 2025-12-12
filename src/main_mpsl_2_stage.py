@@ -19,6 +19,7 @@ from utils.argument_utils import build_base_argument_parser, \
     namespace_to_dict
 from utils.config_utils import set_random_seed
 from utils.cuda_utils import get_free_cuda_device_name, get_device
+from utils.dataloader_utils import get_distributed_dataloaders_from_datasets
 from utils.fl_utils import fed_avg, get_client_weight_multipliers__nr_of_elements
 from utils.model_saving_utils import save_split_model, save_experiment_results
 from utils.mpsl_utils import compute_mini_batch_size
@@ -115,16 +116,16 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
     if total_batch_size > global_args['batch_size']:
         raise Exception(f'total_batch_size > chosen batch_size ({total_batch_size} > {global_args["batch_size"]})')
 
+    validation_mode = global_args['val_mode']
+    validation_split = global_args['val_split']
+    if validation_mode == 'none': validation_split = 0.0
+
     full_dataset = datasets.load_data(name=global_args['dataset'], num_partitions=global_args['nr_of_clients'],
                                       split=global_args['dataset_split_type'], seed=global_args['random_seed'],
-                                      global_args=global_args)
+                                      global_args=global_args, val_split=validation_split)
 
-    test_ds = full_dataset.load_test_set()
-    if global_args['small_test_run']: test_ds = datasets.Subset(full_dataset, range(0,
-                                                                                    len(full_dataset) // 20))  # Only use 32 samples for the test
-    test_dataloader = datasets.DataLoader(test_ds, batch_size=global_args['batch_size'], shuffle=False, pin_memory=True,
-                                          num_workers=global_args['test_num_workers'],
-                                          collate_fn=full_dataset.get_collate_fn(), drop_last=False)
+    val_dataset = full_dataset.load_validation_set()
+    test_dataset = full_dataset.load_test_set()
 
     base_model = get_base_model(global_args, device=device)
 
@@ -138,11 +139,27 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
         print("Skipping fine-tuning as ae_pretrain_only is set to true")
         return
 
+
+
+    client_dataloaders, val_dataloader, test_dataloader = get_distributed_dataloaders_from_datasets(
+        train_dataset=full_dataset,
+        validation_dataset=val_dataset,
+        test_dataset=test_dataset,
+        validation_mode=validation_mode,
+        mini_batch_size=mini_batch_size,
+        total_batch_size=total_batch_size,
+        num_workers=global_args['num_workers'],
+        dataloader_class=datasets.DataLoader,
+        nr_of_clients=global_args['nr_of_clients'],
+        small_test_run=global_args['small_test_run'],
+        collate_fn=full_dataset.get_collate_fn()
+    )
+
     (client_model, server_model, client_model_requires_any_grad), trainer = models.get_split_model_pair_and_trainer(
         global_args, device, base_model, auto_encoder_model)
     server_model = server_model.switch_to_device(device)
 
-    client_dataloaders = dict()
+
     client_models = dict()
 
     client_optimizers = dict()
@@ -156,15 +173,6 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
         f'Number of trainable params client model: {sum(p.numel() for p in client_model.parameters() if p.requires_grad)} | Total number of parameters: {sum(p.numel() for p in client_model.parameters())}')
 
     for client_id in range(global_args['nr_of_clients']):
-        client_train_data = full_dataset.load_partition(partition_id=client_id)
-        if global_args['small_test_run']: client_train_data = datasets.Subset(client_train_data, range(0,
-                                                                                                       32))  # Only use 32 samples for the test
-        client_train_dataloader = datasets.DataLoader(client_train_data, batch_size=mini_batch_size, shuffle=True,
-                                                      pin_memory=True, num_workers=global_args['num_workers'],
-                                                      collate_fn=full_dataset.get_collate_fn(), drop_last=False)
-
-        client_dataloaders[client_id] = client_train_dataloader
-
         _client_model = client_model if client_id == 0 else copy.deepcopy(client_model)
         _client_model = _client_model.switch_to_device(device)
         client_optimizer, client_scheduler = get_optimizer_and_scheduler(_client_model, global_args)
@@ -174,7 +182,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
         if client_model_requires_any_grad:
             client_schedulers[client_id] = client_scheduler
 
-        max_nr_of_batches_in_epoch = max(max_nr_of_batches_in_epoch, len(client_train_dataloader))
+        max_nr_of_batches_in_epoch = max(max_nr_of_batches_in_epoch, len(client_dataloaders[client_id]))
 
     server_optimizer, server_scheduler = get_optimizer_and_scheduler(server_model, global_args)
 
@@ -186,7 +194,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
     for epoch_nr in range(global_args['nr_of_epochs']):
         print(f'Starting epoch {epoch_nr + 1}')
 
-        train_results_as_string, nr_of_elements_per_client_dict = handle_train_epoch(
+        train_loss, acc, nr_of_elements_per_client_dict = handle_train_epoch(
             trainer,
             experiment_results,
             device,
@@ -202,7 +210,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
             epoch_nr + 1,
             global_args
         )
-        print(train_results_as_string)
+        print(f'Finished epoch {epoch_nr} with train loss {train_loss} and accuracy {acc}')
 
         server_scheduler.step()
 
@@ -212,7 +220,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
         if global_args['save_model_after_each_epoch']:
             save_split_model(aggregated_client_model, server_model, global_args['save_file_name'])
 
-        test_results_as_string = handle_test_epoch(
+        test_loss, acc = handle_test_epoch(
             trainer,
             experiment_results,
             device,
@@ -221,7 +229,7 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
             test_dataloader,
             epoch_nr + 1
         )
-        print(test_results_as_string)
+        print(f'test loss: {test_loss}, test accuracy: {acc}')
 
         save_experiment_results(experiment_results, global_args['save_file_name'])
 
@@ -229,8 +237,142 @@ def run_2_stage_mpsl(global_args: dict, search_space_args: dict):
 
     if global_args['save_final_model']:
         save_split_model(aggregated_client_model, server_model, global_args['save_file_name'])
-
-
+#
+# def finetune_distributed(global_args,
+#             trainer,
+#             experiment_results,
+#             device,
+#             server_model,
+#             client_dataloaders,
+#             client_models,
+#             client_model_requires_any_grad,
+#             max_nr_of_batches_in_epoch,
+#             client_optimizers,
+#             client_schedulers,
+#              search_space_args,
+#                              validation_mode, early_stopping_patience=3):
+#     """
+#         Handles the case for early stopping / saving
+#
+#         Args:
+#             validation_mode (str): 'none', 'early_saving', or 'early_stopping'.
+#         """
+#
+#     server_optimizer, server_scheduler = get_optimizer_and_scheduler(server_model, global_args)
+#
+#     # A utility object that can be used to streamline archiving experiment results.
+#     experiment_results = ExperimentResults(validation_mode=validation_mode)
+#     # Make sure to save any specific hyperparameters used for this experiment
+#     experiment_results.params = search_space_args  # Ensure search_space_args is in scope or passed in
+#
+#     # Validation State Variables
+#     best_val_loss = float('inf')
+#     patience_counter = 0
+#
+#     # # # # # # # # # # # # # # # # # Stage 2 Training # # # # # # # # # # # # # # # # #
+#     for epoch_nr in range(global_args['nr_of_epochs']):
+#         print(f'Starting epoch {epoch_nr + 1}')
+#
+#         train_loss, acc, nr_of_elements_per_client_dict = handle_train_epoch(
+#             trainer,
+#             experiment_results,
+#             device,
+#             server_model,
+#             server_optimizer,
+#             server_scheduler,
+#             client_dataloaders,
+#             client_models,
+#             client_model_requires_any_grad,
+#             max_nr_of_batches_in_epoch,
+#             client_optimizers,
+#             client_schedulers,
+#             epoch_nr + 1,
+#             global_args
+#         )
+#         print(f'Finished epoch {epoch_nr} with train loss {train_loss} and accuracy {acc}')
+#         scheduler.step()
+#
+#         # Regular checkpointing (unrelated to early stopping)
+#         if global_args['save_model_after_each_epoch']:
+#             save_centralized_model(full_model, global_args['save_file_name'])
+#
+#         with torch.no_grad():
+#
+#             # --- Option 2 & 3: Use Validation Set ---
+#             if val_dataloader is not None and validation_mode in ['early_saving', 'early_stopping']:
+#                 print('Starting Validation')
+#
+#                 # NOTE: handle_test_epoch MUST return (loss, string) for this to work
+#                 val_loss, val_msg = handle_test_epoch(trainer=trainer,
+#                                                       experiment_results=experiment_results,
+#                                                       model=full_model,
+#                                                       device=device,
+#                                                       dataloader=val_dataloader,
+#                                                       epoch_nr=global_args['nr_of_epochs'] + 1)
+#                 print(f"Validation: {val_msg}")
+#
+#                 # Check for improvement
+#                 if val_loss < best_val_loss:
+#                     best_val_loss = val_loss
+#                     patience_counter = 0
+#                     print(f"Validation loss improved to {best_val_loss:.6f}. Saving model...")
+#                     save_centralized_model(full_model, global_args['save_file_name'])
+#                 else:
+#                     patience_counter += 1
+#                     print(f"Validation loss did not improve. Patience: {patience_counter}/{early_stopping_patience}")
+#
+#                 # Early Stopping Logic
+#                 if validation_mode == 'early_stopping' and patience_counter >= early_stopping_patience:
+#                     print(f"Early stopping triggered after {epoch_nr + 1} epochs.")
+#                     break
+#
+#             # --- Option 1: No Validation (Legacy Behavior) ---
+#             elif validation_mode == 'none':
+#                 print('Starting Test Set Evaluation (Logging only)')
+#                 # Legacy behavior: Run test set every epoch
+#                 # trainer, experiment_results, model, device, dataloader, epoch_nr, optimizer
+#                 test_loss, acc = handle_test_epoch(
+#                     trainer,
+#                     experiment_results,
+#                     device,
+#                     aggregated_client_model,
+#                     server_model,
+#                     test_dataloader,
+#                     epoch_nr + 1
+#                 )
+#                 print(test_results[1])
+#
+#         save_experiment_results(experiment_results, global_args['save_file_name'])
+#
+#     print(f'Finished training.')
+#
+#     # --- Final Test Set Run ---
+#     # If we used early saving/stopping, we must load the best model back in
+#     if validation_mode in ['early_saving', 'early_stopping']:
+#         print(f"Loading best model for final testing...")
+#         try:
+#             load_centralized_model(full_model, device, global_args['save_file_name'])
+#         except FileNotFoundError:
+#             print("Warning: Best model file not found. Using current weights.")
+#
+#     print('Starting Final Test Set Evaluation')
+#     with torch.no_grad():
+#         # trainer, experiment_results, model, device, dataloader, epoch_nr, optimizer
+#         final_test_metric, final_test_msg = handle_test_epoch(trainer=trainer,
+#                                                               experiment_results=experiment_results,
+#                                                               model=full_model,
+#                                                               device=device,
+#                                                               dataloader=test_dataloader,
+#                                                               epoch_nr=global_args['nr_of_epochs'] + 1)
+#
+#         experiment_results.final_test_metric = final_test_metric
+#         print(final_test_msg)
+#
+#     # Save final model as per global args (usually for the artifact storage)
+#     if global_args['save_final_model']:
+#         save_centralized_model(full_model, global_args['save_file_name'])
+#
+#     return full_model
 
 
 if __name__ == '__main__':

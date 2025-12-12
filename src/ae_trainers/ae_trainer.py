@@ -15,7 +15,7 @@ from models import InputModality
 from models.auto_encoder import initialize_AE, IdentityAE
 from utils.ae_registry_utils import load_auto_encoder_model, prepare_ae_dir, filename_from_signature, \
     save_ae_with_signature
-from utils.dataloader_utils import get_dataloaders_from_datasets
+from utils.dataloader_utils import get_dataloaders_from_datasets_AE
 from utils.model_saving_utils import save_ae_experiment_results
 from utils.scheduler_utils import get_ae_pretrain_optimizer_and_scheduler
 
@@ -133,8 +133,8 @@ def pretrain_auto_encoder(global_args, base_model, auto_encoder_model, train_act
     validation_split = global_args['val_split']
     if validation_split == 0: validation_mode = 'none'
 
-    train_acts_dataloader, val_acts_dataloader, test_acts_dataloader = get_dataloaders_from_datasets(train_acts_dataset, test_acts_dataset, validation_mode, validation_split,
-                                  global_args['ae_batch_size'], global_args['num_workers'], DataLoader)
+    train_acts_dataloader, val_acts_dataloader, test_acts_dataloader = get_dataloaders_from_datasets_AE(train_acts_dataset, test_acts_dataset, validation_mode, validation_split,
+                                  global_args['ae_pretrain_batch_size'], global_args['num_workers'], DataLoader)
 
     auto_encoder_trainer = CentralizedAETrainer()
 

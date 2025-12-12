@@ -33,11 +33,65 @@ dataloaders = {
 }
 
 
+def get_train_val_split(
+		dataset,
+		val_split,
+		seed
+):
+	"""
+    Splits a PyTorch dataset into train and validation subsets using
+    torch functions for reproducibility via a torch.Generator.
+    """
+	if val_split == 0.0:
+		# If no validation split is requested, return the full dataset as train
+		# and None for the validation set.
+		return Subset(dataset, torch.arange(len(dataset))), None
+
+	if not (0.0 < val_split < 1.0):
+		raise ValueError("val_split must be between 0.0 and 1.0")
+
+	dataset_len = len(dataset)
+	# Calculate lengths
+	val_len = int(dataset_len * val_split)
+	train_len = dataset_len - val_len
+
+	# --- Use torch for reproducible shuffling ---
+	# 1. Create a torch.Generator instance with the specified seed.
+	generator = torch.Generator().manual_seed(seed)
+
+	# 2. Generate a random permutation of indices from 0 to dataset_len - 1.
+	# The shuffling is controlled by the 'generator'.
+	shuffled_indices = torch.randperm(dataset_len, generator=generator)
+
+	# 3. Split the shuffled indices
+	train_indices = shuffled_indices[:train_len].tolist()
+	val_indices = shuffled_indices[train_len:].tolist()
+
+	# 4. Create Subsets
+	train_subset = Subset(dataset, train_indices)
+	val_subset = Subset(dataset, val_indices)
+
+	return train_subset, val_subset
+
 class Subset(torch.utils.data.Subset):
 
 	@property
 	def num_classes(self):
 		return self.dataset.num_classes
+
+	@property
+	def targets(self):
+		"""
+        Expose targets so DirichletDataPartitioner can access them from the Subset.
+        Assumes the underlying dataset has a 'targets' list/array.
+        """
+		# Access the underlying targets using the subset indices
+		return [self.dataset.targets[i] for i in self.indices]
+
+	@property
+	def num_rows(self):
+		"""Expose num_rows (length) for compatibility with the partitioner checks."""
+		return len(self)
 
 
 class DataLoader(torch.utils.data.DataLoader):
@@ -45,6 +99,8 @@ class DataLoader(torch.utils.data.DataLoader):
 	@property
 	def num_classes(self):
 		return self.dataset.num_classes
+
+
 
 
 class DirichletDataPartitioner:
@@ -194,8 +250,8 @@ class DirichletDataPartitioner:
 
 class DistributedDataset(torch.utils.data.Dataset):
 	"""
-	As per FederatedDataset of https://github.com/adap/flower
-	"""
+    As per FederatedDataset of https://github.com/adap/flower
+    """
 
 	def __init__(
 			self,
@@ -204,27 +260,29 @@ class DistributedDataset(torch.utils.data.Dataset):
 			alpha=0.5,
 			num_partitions=10,
 			min_partition_size=10,
-			self_balancing=True, # federated params
+			self_balancing=True,
 			shuffle=False,
-			seed=42, # random-ness params
+			seed=42,
+			val_split=0.0,  # <--- NEW PARAMETER
 			**kwargs,
-		):
-
+	):
 		self._dataloader = dataloader
 		self._dataloader_args = {'transform': transform, 'seed': seed, 'global_args': kwargs['global_args']}
-
-		# Add all dataset-specific params
 		self._dataloader_args.update(kwargs)
 
-		# Create train dataloader
-		self.train_ds = self._dataloader(
+		# 1. Load the FULL training dataset
+		full_train_ds = self._dataloader(
 			train=True,
 			**self._dataloader_args
 		)
 
-		custom_partitioner_function = self.train_ds.custom_partitioner_function if hasattr(self.train_ds, 'custom_partitioner_function') else None
+		# 2. Split into Train and Validation (before partitioning)
+		self.train_ds, self.val_ds = get_train_val_split(full_train_ds, val_split, seed)
 
-		# Create data partitioner
+		custom_partitioner_function = self.train_ds.custom_partitioner_function if hasattr(self.train_ds,
+																						   'custom_partitioner_function') else None
+
+		# 3. Create data partitioner using ONLY the training subset
 		self.partitioner = DirichletDataPartitioner(
 			dataset=self.train_ds,
 			num_partitions=num_partitions,
@@ -238,13 +296,18 @@ class DistributedDataset(torch.utils.data.Dataset):
 
 		self._seed = seed
 
+	# ... [keep existing properties: num_classes, classes, __getitem__, __len__, load_partition] ...
+
 	@property
 	def num_classes(self):
 		return self.train_ds.num_classes
 
 	@property
 	def classes(self):
-		return list(self.train_ds._classes.keys())
+		# Handle case where Subset might not have _classes directly if needed,
+		# but usually accessing the underlying dataset is safer if _classes is not on Subset
+		return list(self.train_ds.dataset._classes.keys()) if hasattr(self.train_ds, 'dataset') else list(
+			self.train_ds._classes.keys())
 
 	def __getitem__(self, idx):
 		return self.train_ds[idx]
@@ -254,15 +317,22 @@ class DistributedDataset(torch.utils.data.Dataset):
 
 	def load_partition(self, partition_id: int) -> torch.utils.data.Dataset:
 		partition = self.partitioner.load_partition(partition_id)
-
 		return partition
 
+	# ... [keep load_test_set] ...
 	def load_test_set(self) -> torch.utils.data.Dataset:
 		test_ds = self._dataloader(
 			train=False,
 			**self._dataloader_args
 		)
 		return test_ds
+
+	# 4. New method to access the global validation set
+	def load_validation_set(self) -> torch.utils.data.Dataset:
+		if self.val_ds is None:
+			return None
+			# raise ValueError("No validation split was created. Initialize with val_split > 0.")
+		return self.val_ds
 
 	def get_collate_fn(self):
 		return self._dataloader.custom_collate_fn
@@ -272,28 +342,29 @@ def available_datasets():
 	return list(dataloaders.keys())
 
 
-def load_data(name='cifar100', num_partitions=10, min_num_samples=10, split='iid', seed=42, transform=None, global_args=None):
-	assert name in dataloaders.keys(), 'Dataset `{}` is not available. Available datasets are `{}`'.format(name, available_datasets())
+def load_data(name='cifar100', num_partitions=10, min_num_samples=10, split='iid', seed=42, transform=None, global_args=None, val_split=0.0):
+    assert name in dataloaders.keys(), 'Dataset `{}` is not available. Available datasets are `{}`'.format(name, available_datasets())
 
-	if split == 'iid':
-		alpha = 100000.0
-	elif split == 'noniid':
-		alpha = 0.5
-	elif isinstance(split, int):
-		alpha = split
-	else:
-		ValueError('`split` can be either `iid`, `noniid`, `int` or `float`. Passed {} of type {}'.format(split, type(split)))
+    if split == 'iid':
+       alpha = 100000.0
+    elif split == 'noniid':
+       alpha = 0.5
+    elif isinstance(split, int):
+       alpha = split
+    else:
+       ValueError('`split` can be either `iid`, `noniid`, `int` or `float`. Passed {} of type {}'.format(split, type(split)))
 
-	ds, folder_name = dataloaders[name]
+    ds, folder_name = dataloaders[name]
 
-	return DistributedDataset(
-		dataloader=ds,
-		transform=transform,
-		alpha=alpha, # Note: alpha determines the data distribution among partitions
-		num_partitions=num_partitions,
-		min_partition_size=min_num_samples,
-		self_balancing=True,
-		shuffle=False,
-		seed=seed,
-		global_args=global_args
-	)
+    return DistributedDataset(
+       dataloader=ds,
+       transform=transform,
+       alpha=alpha,
+       num_partitions=num_partitions,
+       min_partition_size=min_num_samples,
+       self_balancing=True,
+       shuffle=False,
+       seed=seed,
+       global_args=global_args,
+       val_split=val_split # <--- Pass it here
+    )

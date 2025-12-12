@@ -194,7 +194,7 @@ class SASLTrainer(ExperimentTrainer):
         print(f'Average client communication overhead: incoming {avg_incoming_comms_overhead_in_mb} MB & outgoing {avg_outgoing_comms_overhead_in_mb} MB')
         experiment_results.set_client_communication_overhead(avg_incoming_comms_overhead_in_mb, avg_outgoing_comms_overhead_in_mb)
 
-        return total_server_loss, acc, f'Finished epoch {epoch_nr} with train loss {total_server_loss} and accuracy {acc}', nr_of_elements_per_client_dict
+        return total_server_loss, acc, nr_of_elements_per_client_dict
 
     def _test_epoch(self, client_model, server_model, dataloader, device, experiment_results: ExperimentResults, epoch_nr):
         client_model.eval()
@@ -238,7 +238,7 @@ class SASLTrainer(ExperimentTrainer):
 
         experiment_results.add_results(epoch_nr, acc, True)
 
-        return f'test loss {total_server_loss} and accuracy {acc}'
+        return total_server_loss, acc
 
     def train_epoch(self, **kwargs):
         return self._train_epoch(

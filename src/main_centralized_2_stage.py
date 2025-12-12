@@ -86,8 +86,6 @@ def run_2_stage(global_args: dict, search_space_args: dict):
     train_data = full_dataset.load_partition(partition_id=0)
     test_data = full_dataset.load_test_set()
 
-    if global_args['small_test_run']: train_data = datasets.Subset(full_dataset, range(0, len(full_dataset) // 20))
-    if global_args['small_test_run']: test_data = datasets.Subset(test_data, range(0, len(test_data) // 20))
 
     validation_mode = global_args['val_mode']
     validation_split = global_args['val_split']
@@ -99,6 +97,7 @@ def run_2_stage(global_args: dict, search_space_args: dict):
                                                                                       global_args['batch_size'],
                                                                                       global_args['num_workers'],
                                                                                       datasets.DataLoader,
+                                                                                      global_args['small_test_run'],
                                                                                       collate_fn=full_dataset.get_collate_fn())
 
     # Using the base model and the AE, load the full centralized model and the trainer
@@ -119,7 +118,6 @@ def finetune_centralized(global_args, device, full_model, trainer,
 
     Args:
         validation_mode (str): 'none', 'early_saving', or 'early_stopping'.
-        model_save_path (str): Path to save the best model (required for early_saving/stopping).
     """
     print(
         f'trainable params centralized model: {sum(p.numel() for p in full_model.parameters() if p.requires_grad)} | all: {sum(p.numel() for p in full_model.parameters())}')
